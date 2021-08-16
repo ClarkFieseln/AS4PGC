@@ -621,7 +621,7 @@ if WRITE:
     if not isinstance(args.output_file, type(None)):
         OUT_FILE_NAME = args.output_file
     else:
-        OUT_FILE_NAME = OUT_DIR_NAME + "out.mp3"
+        OUT_FILE_NAME = OUT_DIR_NAME + "stego.mp3"
     logging.info("OUT_FILE_NAME = " + OUT_FILE_NAME)
     # COMPRESSION may be set to True later if it really brings a reduction in msg length
     COMPRESSION = False
