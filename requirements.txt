@@ -1,9 +1,0 @@
-numpy==1.19.3
-scipy==1.5.4
-matplotlib==3.3.3
-cryptography==3.4.7
-simpleaudio==1.0.4
-dataclasses==0.6
-SoundFile==0.10.3.post1
-tinytag==1.5.0
-bitarray==1.6.1
