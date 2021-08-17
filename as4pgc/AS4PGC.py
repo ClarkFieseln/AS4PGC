@@ -1987,16 +1987,12 @@ def write():
                                                 logging.info("         We now reduce the number of coding frequencies to "+str(fc))
                                                 NR_OF_CODE_FREQUENCIES_TO_CODE = fc
                                                 MAX_NR_OF_CODE_FREQUENCIES = int(NR_OF_CODE_FREQUENCIES_TO_CODE / INTERLEAVED_FC)
-                                                # TODO: check if we need to uncomment this code
-                                                ###############################################
-                                                # '''
                                                 skip.setall(False)
                                                 skipForcePlus.setall(False)
                                                 skipForceMinus.setall(False)
                                                 # and leave decode loops
                                                 leave_loops = True
                                                 break
-                                                # '''
                                             else:
                                                 logging.error("Error: we are decoding a SKIPPED-FORCED bit at i = " + str(i) + " for fc = "+str(fc))
                                                 logging.error("       Nr. of bits coded = "+str(nrOfBitsCodedInMsg))

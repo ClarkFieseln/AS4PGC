@@ -35,6 +35,6 @@ https://github.com/ClarkFieseln/as4pgc
 
 ## License
 
-2021 Clark Fieseln
+(c) 2021 Clark Fieseln
 
 This repository is licensed under the MIT license. See LICENSE for details.
