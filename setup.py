@@ -13,7 +13,7 @@ __version__ = "1.0.3"
 setup(
     name="as4pgc",
     version=__version__,
-    description = "Audio Stego for Pretty Good Concealing - hide message file in audio file",
+    description = "Audio Steganography for Pretty Good Concealing - hide message file in audio file",
     long_description=README,
     long_description_content_type="text/markdown",
     url="https://github.com/ClarkFieseln/as4pgc",
