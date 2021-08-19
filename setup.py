@@ -13,7 +13,7 @@ __version__ = "1.0.4"
 setup(
     name="as4pgc",
     version=__version__,
-    description = "Audio Steganography - hide secret file in audio file (MP3, WAV, OGG, FLAC)",
+    description = "Audio Steganography - hide secret file in audio file (MP3, WAV, OGG, FLAC, ..)",
     long_description=README,
     long_description_content_type="text/markdown",
     url="https://github.com/ClarkFieseln/as4pgc",
