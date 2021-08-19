@@ -4,7 +4,7 @@
     ~~~~~~~~~
 
     This module contains functions for hiding and recovering files
-    using .mp3 audio files.
+    using compressed audio files of types supported by ffmpeg (e.g. mp3, flac, ogg) but also uncompressed .wav is supported.
 
     :copyright: (c) 2021 by Clark Fieseln.
     :license: MIT License, see LICENSE.md for more details.
@@ -13,15 +13,16 @@
 """
     Notes
     ~~~~~
-    Warning! Hiding files inside "big MP3 files" (e.g. 3 min.) may take up to one hour.
-    ###################################################################################
-    The target of this steganographic technique is hiding information in .MP3 audio files instead of using the classical
-    LSB-steganography on .WAV files.
+    Warning! Hiding files inside "big audio files" (e.g. 3 min.) may take up to one hour.
+             Formats tested so far: MP3, FLAC, OGG, WAV
+    #####################################################################################
+    The target of this steganographic technique is hiding information in compressed audio files instead of using the classical
+    LSB-steganography on .WAV files. But also uncompressed .WAV files may be used as carrier.
     This results in a lower capacity, but an audio format is used, which is much more wide spread and therefore less
     suspicious.
     The main reason it is not possible to directly manipulate "single" samples as in .WAV format 
-    is because of changes resulting from conversion in .MP3 format which distort signal manipulations.
-    Modifications on single bits of the samples are just too small to survive MP3 conversion reliably.
+    is because of changes resulting from conversion e.g. in .MP3 format which distort signal manipulations.
+    Modifications on single bits of the samples are just too small to survive audio compression reliably.
     Instead, the audio signal is partitioned in small chunks and then the FFT of each chunk is calculated.
     The FFT-series obtained as a result, is manipulated by increasing or decreasing the amplitude of the FFT at specific
     coding-frequencies.
@@ -79,7 +80,7 @@ from sys import exit
 #       if we import it from setup.py the help shows "strange default parameters"...
 # import setup
 # from setup import __version__
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 
 # current frame
 ###############
@@ -106,11 +107,11 @@ LEVEL_OF_COMPRESSION = 9
 #################
 parser = argparse.ArgumentParser(prog='as4pgc',
                                  usage='%(prog)s -w <message_file> <carrier_file> [options]\n       or\n       %(prog)s -r <stego_file> [options]',
-                                 description='Hide message_file (e.g. txt or zip) inside carrier_file (mono .wav, .mp3, .oog, .aac)\nor\nExtract message_file from stego_file.')
+                                 description='Hide message_file (e.g. type txt or zip) inside carrier_file (e.g. type mp3, oog, flac, wav)\nor\nExtract message_file from stego_file.')
 group = parser.add_mutually_exclusive_group()
-group.add_argument('-w', "--write", action='store', type=str, nargs=2, help='<path and name of file with secret message (any type)> <path and name of file used as a carrier to embed the secret message file (.mp3 mono or stereo)>', metavar='')
-parser.add_argument('-f', "--output_file", action='store', type=str, help='(-w) path and name of stego output file of type .mp3 or (-r) name of message output file', metavar='')
-parser.add_argument('-n', "--no_encryption", action='store_false', help='do NOT encrypt the secret message before hiding it')
+group.add_argument('-w', "--write", action='store', type=str, nargs=2, help='<path and name of file with secret message (any type)> <path and name of file used as a carrier to embed the secret message file (mono or stereo)>', metavar='')
+parser.add_argument('-f', "--output_file", action='store', type=str, help='(-w) path and name of stego output file of same type as carrier or (-r) name of message output file', metavar='')
+parser.add_argument('-n', "--no_encryption", action='store_true', help='do NOT encrypt the secret message before hiding it')
 group.add_argument('-r', "--read", action='store', type=str, help='<path and name of stego file with hidden secret message (e.g. type .mp3 mono)>', metavar='')
 parser.add_argument('-v', "--verbose", action='store_true', help='display details during program execution')
 parser.add_argument('-l', "--verbose_level", action='store', type=str, choices={"info","warning","error","critical","debug"}, help=': info, warning, error, critical, debug', metavar='')
@@ -226,7 +227,7 @@ class Configuration:
     CODE_FREQUENCY_END_BIN: int
     CHECK_IMAG_TOO: bool
     KEEP_TEMP_FILES: bool
-    MP3_BITRATE: int
+    BITRATE: int
     INTERPOLATE_AND_DUMMY_CODE_ALL: bool
     AVG_INTERPOLATION: bool
     INTERPOLATE_WITH_MEAN: bool
@@ -263,7 +264,7 @@ configuration = Configuration(
     189, # 239 # 359 # 399, # 199, # CODE_FREQUENCY_END_BIN
     True, # CHECK_IMAG_TOO
     False, # KEEP_TEMP_FILES
-    320000, # MP3_BITRATE
+    320000, # BITRATE
     False, # INTERPOLATE_AND_DUMMY_CODE_ALL
     False, # AVG_INTERPOLATION
     True, # INTERPOLATE_WITH_MEAN
@@ -361,9 +362,9 @@ if os.path.isfile(config_filename):
             if "KEEP_TEMP_FILES" in config["myAdvancedConfig"]:
                 configuration.KEEP_TEMP_FILES = config.getboolean('myAdvancedConfig', 'KEEP_TEMP_FILES')
                 logging.info("        configuration.KEEP_TEMP_FILES = " + configuration.KEEP_TEMP_FILES.__str__())
-            if "MP3_BITRATE" in config["myAdvancedConfig"]:
-                configuration.MP3_BITRATE = int(config['myAdvancedConfig']['MP3_BITRATE'])
-                logging.info("        configuration.MP3_BITRATE = " + configuration.MP3_BITRATE.__str__())
+            if "BITRATE" in config["myAdvancedConfig"]:
+                configuration.BITRATE = int(config['myAdvancedConfig']['BITRATE'])
+                logging.info("        configuration.BITRATE = " + configuration.BITRATE.__str__())
             if "INTERPOLATE_AND_DUMMY_CODE_ALL" in config["myAdvancedConfig"]:
                 configuration.INTERPOLATE_AND_DUMMY_CODE_ALL = config.getboolean('myAdvancedConfig', 'INTERPOLATE_AND_DUMMY_CODE_ALL')
                 logging.info("        configuration.INTERPOLATE_AND_DUMMY_CODE_ALL = " + configuration.INTERPOLATE_AND_DUMMY_CODE_ALL.__str__())
@@ -404,10 +405,10 @@ if configuration.CODE_FREQUENCY_END_BIN <= configuration.CODE_FREQUENCY_START_BI
 
 # ffmpeg version
 ################
+FFMPEG_VERSION = configuration.FFMPEG_VERSION
 command = "ffmpeg -version"
 p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
 out, err = p1.communicate()
-FFMPEG_VERSION = configuration.FFMPEG_VERSION
 if p1.returncode == 0:
     ffmpeg_ver_idx_start = out.__str__().find("ffmpeg version")
     if ffmpeg_ver_idx_start >= 0:
@@ -424,6 +425,23 @@ else:
 p1.terminate()
 p1.kill()
 logging.info("FFMPEG_VERSION = "+FFMPEG_VERSION+"(used only for plausibility check)")
+
+# ffmpeg formats
+################
+FFMPEG_FORMATS = " wav , mp3 , ogg , flac "
+# TODO: find out why we see the output of the ffmpeg -version command and hide it..
+'''
+command = "ffmpeg -formats"
+p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
+out, err = p1.communicate()
+FFMPEG_FORMATS = str(out)
+if p1.returncode != 0:
+    logging.error("Error: could not get ffmpeg formats!")
+    exit(cf.f_lineno)
+p1.terminate()
+p1.kill()
+logging.info("FFMPEG_FORMATS = "+FFMPEG_FORMATS)
+# '''
 
 # mess-up config?
 # NOTE: if no pwd is provided but -m was passed
@@ -466,7 +484,7 @@ while (True):
         elif MESS_UP_CONFIG == False:
             # Note: no password and no argument -m provided
             #       the unmodified seeds may be the hardcoded-default-values or may come from config.ini
-            #       We still have some randomness derived from deception[] and ignore[] which will generate different .mp3 files
+            #       We still have some randomness derived from deception[] and ignore[] which will generate different compressed audio files
             #       in each iteration, resulting in small variations during normalization/scaling of the audio signal.
             logging.warning("Warning: no pwd provided, unmodified seeds will be used.")
         if WRITE == True:
@@ -522,7 +540,7 @@ if MESS_UP_CONFIG == True:
     idx_key = (idx_key + 1) % len_key
     #### CHECK_IMAG_TOO: bool
     #### KEEP_TEMP_FILES: bool
-    #### MP3_BITRATE: int
+    #### BITRATE: int
     #### INTERPOLATE_AND_DUMMY_CODE_ALL: bool
     #### AVG_INTERPOLATION: bool                     #### good candidate to mess-up
     #### INTERPOLATE_WITH_MEAN: bool                 #### good candidate to mess-up
@@ -562,7 +580,7 @@ if not os.path.isfile(config_filename):
     config['myAdvancedConfig']['CODE_FREQUENCY_END_BIN'] = str(configuration.CODE_FREQUENCY_END_BIN)
     config['myAdvancedConfig']['CHECK_IMAG_TOO'] = str(configuration.CHECK_IMAG_TOO)
     config['myAdvancedConfig']['KEEP_TEMP_FILES'] = str(configuration.KEEP_TEMP_FILES)
-    config['myAdvancedConfig']['MP3_BITRATE'] = str(configuration.MP3_BITRATE)
+    config['myAdvancedConfig']['BITRATE'] = str(configuration.BITRATE)
     config['myAdvancedConfig']['INTERPOLATE_AND_DUMMY_CODE_ALL'] = str(configuration.INTERPOLATE_AND_DUMMY_CODE_ALL)
     config['myAdvancedConfig']['AVG_INTERPOLATION'] = str(configuration.AVG_INTERPOLATION)
     config['myAdvancedConfig']['INTERPOLATE_WITH_MEAN'] = str(configuration.INTERPOLATE_WITH_MEAN)
@@ -611,11 +629,21 @@ logging.info("NORMALIZE_SETTINGS = " + str(NORMALIZE_SETTINGS))
 CHECK_IMAG_TOO = configuration.CHECK_IMAG_TOO
 logging.info("CHECK_IMAG_TOO = " + str(CHECK_IMAG_TOO))
 FILE_NAME_HDR = ""
+FILE_TYPE = "no_file_type_specified" # includes the point!
+if WRITE:
+    FILE_TYPE = str.lower(carrier_file[carrier_file.rfind("."):])
+else:
+    FILE_TYPE = str.lower(stego_file[stego_file.rfind("."):])
+if " "+FILE_TYPE[1:]+" " not in FFMPEG_FORMATS: # if FILE_TYPE != ".mp3" and FILE_TYPE != ".flac":
+    print("Error: carrier file type not supported. ffmpeg -formats:")
+    print(FFMPEG_FORMATS)
+    exit(cf.f_lineno)
+else:
+    # TODO: extend list according to tests..
+    if FILE_TYPE[1:] != "mp3" and FILE_TYPE[1:] != "ogg" and FILE_TYPE[1:] != "flac" and FILE_TYPE[1:] != "wav":
+        print("Warning: file type " + FILE_TYPE[1:] + " not yet tested!")
 
 if WRITE:
-    if ".mp3" not in carrier_file:
-        print("Error: carrier file shall be .mp3 type")
-        exit(cf.f_lineno)
     CARRIER_FILE_NAME = carrier_file
     logging.info("CARRIER_FILE_NAME = " + CARRIER_FILE_NAME)
     # Note: output directory of carrier also used as temp dir
@@ -627,7 +655,7 @@ if WRITE:
     if not isinstance(args.output_file, type(None)):
         OUT_FILE_NAME = args.output_file
     else:
-        OUT_FILE_NAME = OUT_DIR_NAME + "stego.mp3"
+        OUT_FILE_NAME = OUT_DIR_NAME + "stego" + FILE_TYPE
     logging.info("OUT_FILE_NAME = " + OUT_FILE_NAME)
     # COMPRESSION may be set to True later if it really brings a reduction in msg length
     COMPRESSION = False
@@ -675,7 +703,7 @@ logging.info("MAX_NR_OF_ITERATIONS = " + str(MAX_NR_OF_ITERATIONS))
 #       configuration settings. High values of MAX_VOLUME are especially useful in signals with low level,
 #       which otherwise hide less bits.
 # WARNING: scaling, as well as other signal manipulations such as adding noise, a tone, or saturation will affect
-#       the .MP3 result irreversibly. Note: adding noise reduces correlation between chunks, this is not good.
+#       the result irreversibly. Note: adding noise reduces correlation between chunks, this is not good.
 #       *** DO NOT SCALE if you intend to UNSCALE after coding...that will destroy coding ***
 ################################################################################################
 SCALE_INPUT = True
@@ -706,10 +734,11 @@ NUM_CHANNELS = 1
 BYTES_PER_SAMPLE = 2
 BITS_PER_SAMPLE = 8*BYTES_PER_SAMPLE
 MAX_AMPLITUDE = 2**(BITS_PER_SAMPLE-1)
-MP3_BITRATE = configuration.MP3_BITRATE
-MP3_BITRATE_STR = str(MP3_BITRATE)
+BITRATE = configuration.BITRATE
+BITRATE_STR = str(BITRATE)
 # 32-bit floating reduces digitizing errors but is probably not supported by other tools
-MP3_SAMPLE_FORMAT = "flt"  # "s16" # "dbl"
+# flt not supported by .flac
+SAMPLE_FORMAT = "s16" # "flt"  # "s16" # "dbl"
 WAV_SAMPLE_FORMAT = "pcm_f32le"  # "pcm_s16le"
 CHUNK_LEN_SAMPLES = configuration.CHUNK_LEN_SAMPLES
 # Note: MAX_VOLUME is applied when SCALE_INPUT = True (see comments there)
@@ -737,7 +766,7 @@ if INTERLEAVED_FC < 1:
 #       may even shorten iterations, but then we affect audio statistics.
 INTERPOLATE_AND_DUMMY_CODE_ALL = configuration.INTERPOLATE_AND_DUMMY_CODE_ALL
 logging.info("SAMPLING_FREQUENCY = " + str(SAMPLING_FREQUENCY))
-logging.info("MP3_BITRATE_STR = " + MP3_BITRATE_STR)
+logging.info("BITRATE_STR = " + BITRATE_STR)
 logging.info("CHUNK_LEN_SAMPLES = " + str(CHUNK_LEN_SAMPLES))
 logging.info("MAX_VOLUME = " + str(MAX_VOLUME))
 logging.info("INTERLEAVED_CHUNKS = " + str(INTERLEAVED_CHUNKS))
@@ -789,7 +818,7 @@ for i in range(len(CODE_FREQUENCY)):
     logging.info("CODE_FREQUENCY_BIN[" + str(i) + "] = " + str(CODE_FREQUENCY_BIN[i]))
 ###################################################
 # Note:
-#      coding between 12kHz and 20kHz seems to work fine when output 320k .mp3
+#      coding between 12kHz and 20kHz seems to work fine when output 320k
 #      Below 12kHz we get too much hearable noise, above 20kHz signal is too weak.
 ##################################################################################
 if configuration.CODE_FREQUENCY_START_BIN < NR_OF_FFT_BINS:
@@ -1015,43 +1044,53 @@ def write():
     filename = getframeinfo(cf).filename
     logging.info("(Line nr. "+str(cf.f_lineno)+") Enter write() function in file: " + filename)
 
-    # extract .mp3 metadata for info only
-    #####################################
-    tag = TinyTag.get(FILE_NAME + ".mp3")
-    logging.info(stego_file+" metadata:")
-    logging.info("    duration in seconds = "+str(tag.duration))
-    logging.info("    samplerate = " + str(tag.samplerate))
-    logging.info("    bitrate = " + str(tag.bitrate))
-    logging.info("    channels = " + str(tag.channels))
-    logging.info("    comment = " + str(tag.comment))
+    # extract file metadata
+    # Note: we assume mono, sometimes channels = None or file has no tag data
+    #########################################################################
+    tag_channels = 1
+    try:
+        tag = TinyTag.get(FILE_NAME + FILE_TYPE)
+        tag_channels = tag.channels
+        logging.info(stego_file+" metadata:")
+        logging.info("    duration in seconds = "+str(tag.duration))
+        logging.info("    samplerate = " + str(tag.samplerate))
+        logging.info("    bitrate = " + str(tag.bitrate))
+        logging.info("    channels = " + str(tag.channels))
+        logging.info("    comment = " + str(tag.comment))
+    except Exception as e:
+        # traceback.print_exc()
+        # exit(cf.f_lineno)
+        logging.warning("Warning: "+e.__str__())
+        logging.warning("         assuming mono file..")
 
-    # mono?
-    #######
-    if tag.channels != 1:
-        logging.warning("Warning: no mono input file! Output will be converted to mono.")
-
-    # convert input file in .mp3 format to .wav to make it readable by code
+    # convert input file in FILE_TYPE format to .wav to make it readable by code
     # TODO: solve Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
     #             Severity: Low   Confidence: High
     ##########################################################################################################################
-    if tag.channels == 1:
-        command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + ".mp3 -vn -acodec "+WAV_SAMPLE_FORMAT+" -ac 1 -ar "+str(SAMPLING_FREQUENCY)+" -f wav " + FILE_NAME + ".wav"
-    else:
-        command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + ".mp3 -vn -acodec "+WAV_SAMPLE_FORMAT+" -ac 2 -ar " + str(SAMPLING_FREQUENCY) + " -f wav " + FILE_NAME + "_temp.wav"
-    p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
-    out, err = p1.communicate()
-    if p1.returncode == 0:
-        pass
-    else:
-        logging.error("Error: could not run ffmpeg!")
-        exit(cf.f_lineno)
-    p1.terminate()
-    p1.kill()
-    logging.info("Converted " + FILE_NAME + ".mp3 to " + FILE_NAME + ".wav")
+    if FILE_TYPE != ".wav":
+        if tag_channels == 2:
+            logging.warning("Warning: no mono input file! Output will be converted to mono.")
+            command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + FILE_TYPE + " -vn -acodec " + WAV_SAMPLE_FORMAT + " -ac 2 -ar " + str(
+                SAMPLING_FREQUENCY) + " -f wav " + FILE_NAME + "_temp.wav"
+        else:
+            command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + FILE_TYPE + " -vn -acodec " + WAV_SAMPLE_FORMAT + " -ac 1 -ar " + str(
+                SAMPLING_FREQUENCY) + " -f wav " + FILE_NAME + ".wav"
+        p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
+        out, err = p1.communicate()
+        if p1.returncode == 0:
+            pass
+        else:
+            logging.error("Error: could not run ffmpeg!")
+            exit(cf.f_lineno)
+        p1.terminate()
+        p1.kill()
+        logging.info("Converted " + FILE_NAME + FILE_TYPE + " to " + FILE_NAME + ".wav")
+    elif tag_channels == 2:
+        copy2(FILE_NAME + FILE_TYPE, FILE_NAME + "_temp" + FILE_TYPE)
 
     # stereo to mono
     ################
-    if tag.channels == 2:
+    if tag_channels == 2:
         command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_temp.wav -map_channel 0.0.0 " + FILE_NAME + ".wav"
         p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
         out, err = p1.communicate()
@@ -1118,11 +1157,11 @@ def write():
 
     # Saturation?
     #############
-    for i in range(len(sig3)):
-        if sig3[i] > 1.0:
-            logging.error("Error: saturation after scaling - irreparable situation, we may get stuck")
-            logging.error("       SATURATION in sample i = " + str(i) + " with value = " + str(sig3[i]))
-            exit(cf.f_lineno)
+    sig3_max = max(abs(sig3))
+    if sig3_max > 1.0:
+        logging.error("Error: saturation after scaling - irreparable situation, we may get stuck")
+        logging.error("       SATURATION in sample i = " + str(i) + " with value = " + str(sig3[i]))
+        exit(cf.f_lineno)
 
     # plot sig
     ##########
@@ -1639,10 +1678,16 @@ def write():
         wf.write(FILE_NAME + "_mod.wav", SAMPLING_FREQUENCY, audio3_recovered_mod)
         logging.info("Written " + FILE_NAME + "_mod.wav from audio")
 
-        # _mod.wav -> _out.mp3
-        # _out.mp3 is the .mp3 "SCALED" version of the carrier file, now containing the stego-message
-        #############################################################################################
-        command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ab " + MP3_BITRATE_STR + " -sample_fmt "+MP3_SAMPLE_FORMAT+" -metadata comment='comment' " + FILE_NAME + "_out.mp3"
+        # _mod.wav -> _out + FILE_TYPE
+        # _out + FILE_TYPE is the "SCALED" version of the carrier file, now containing the stego-message
+        ################################################################################################
+        # command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ab " + BITRATE_STR + " -sample_fmt "+SAMPLE_FORMAT+" -metadata comment='comment' " + FILE_NAME + "_out"+ FILE_TYPE
+        if FILE_TYPE == ".ogg":
+            command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -aq 10 -metadata comment='comment' " + FILE_NAME + "_out" + FILE_TYPE
+        elif FILE_TYPE == ".amr":
+            command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ar 8000 -metadata comment='comment' " + FILE_NAME + "_out" + FILE_TYPE
+        else:
+            command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ab " + BITRATE_STR + " -metadata comment='comment' " + FILE_NAME + "_out" + FILE_TYPE
         p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
         out, err = p1.communicate()
         if p1.returncode == 0:
@@ -1652,37 +1697,38 @@ def write():
             exit(cf.f_lineno)
         p1.terminate()
         p1.kill()
-        logging.info("Converted " + FILE_NAME + "_mod.wav to " + FILE_NAME + "_out.mp3")
+        logging.info("Converted " + FILE_NAME + "_mod.wav to " + FILE_NAME + "_out"+FILE_TYPE)
 
-        # convert _out.mp3 to _out.wav to make it readable by code (readback)
-        #####################################################################
-        command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_out.mp3 -vn -acodec "+WAV_SAMPLE_FORMAT+" -ac 1 -ar " + str(
+        # convert _out + FILE_TYPE to _out.wav to make it readable by code (readback)
+        #############################################################################
+        if FILE_TYPE != ".wav":
+            command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_out" + FILE_TYPE + " -vn -acodec "+WAV_SAMPLE_FORMAT+" -ac 1 -ar " + str(
             SAMPLING_FREQUENCY) + " -f wav " + FILE_NAME + "_out.wav"
-        p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
-        out, err = p1.communicate()
-        if p1.returncode == 0:
-            pass
-        else:
-            logging.error("Error: could not run ffmpeg!")
-            exit(cf.f_lineno)
-        p1.terminate()
-        p1.kill()
-        logging.info("Converted " + FILE_NAME + "_out.mp3 to " + FILE_NAME + "_out.wav")
+            p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
+            out, err = p1.communicate()
+            if p1.returncode == 0:
+                pass
+            else:
+                logging.error("Error: could not run ffmpeg!")
+                exit(cf.f_lineno)
+            p1.terminate()
+            p1.kill()
+            logging.info("Converted " + FILE_NAME + "_out" + FILE_TYPE + " to " + FILE_NAME + "_out.wav")
 
         # readback temporary stego file
-        # read sig4 <- _out.wav  (with _out.wav <- _out.mp3 <- sig3_recovered_mod)
+        # read sig4 <- _out.wav  (with _out.wav <- _out + FILE_TYPE <- sig3_recovered_mod)
         ##########################################################################
         sig4, samplerate = sf.read(FILE_NAME + "_out.wav")
         logging.info("Read " + FILE_NAME + "_out.wav as sig4")
 
-        # copy _out.mp3 -> OUT_FILE_NAME
+        # copy _out + FILE_TYPE -> OUT_FILE_NAME
         # and delete temporary files
         ################################
         if DO_LAST == True:
             # Note: if you dont want to copy metadata and permissions use instead:
-            #            copyfile(FILE_NAME+"_out.mp3", OUT_FILE_NAME)
+            #            copyfile(FILE_NAME+"_out+FILE_TYPE", OUT_FILE_NAME)
             ##########################################################
-            copy2(FILE_NAME + "_out.mp3", OUT_FILE_NAME)
+            copy2(FILE_NAME + "_out"+FILE_TYPE, OUT_FILE_NAME)
             # hide output file
             ##################
             if HIDE == True:
@@ -1710,11 +1756,11 @@ def write():
                 if os.path.exists(FILE_NAME + "_out.wav"):
                     os.remove(FILE_NAME + "_out.wav")
                     logging.info("Deleted " + FILE_NAME + "_out.wav")
-                # del in_out.mp3
-                ################
-                if os.path.exists(FILE_NAME + "_out.mp3"):
-                    os.remove(FILE_NAME + "_out.mp3")
-                    logging.info("Deleted " + FILE_NAME + "_out.mp3")
+                # del in_out + FILE_TYPE
+                ########################
+                if os.path.exists(FILE_NAME + "_out"+FILE_TYPE):
+                    os.remove(FILE_NAME + "_out"+FILE_TYPE)
+                    logging.info("Deleted " + FILE_NAME + "_out"+FILE_TYPE)
 
             # play audio3_recovered_mod (buffered signal)
             #############################################
@@ -1726,10 +1772,9 @@ def write():
                 play_obj.wait_done()
                 logging.info("Finished playing stego file")
 
-        # Due to format change .wav -> .mp3 and back to .wav we may have now a different length.
+        # Due to format change .wav -> FILE_TYPE and back to .wav we may have now a different length.
         # So we need to shorten the signal.
-        # TODO: remove this old assertion and workaround, not needed anymore..(?)
-        #######################################################################################
+        ############################################################################################
         if len(sig3) != len(sig4):
             logging.info("Warning: len_sig3("+str(len(sig3))+") != len_sig4("+str(len(sig4))+")..lenghts will be corrected")
             sig4 = sig4[:len(sig3)]
@@ -1775,7 +1820,7 @@ def write():
         ########################
         if DO_LAST and PLOT_ERR == True:
             plt.figure(7)
-            plt.title("err4[%] = sig4 - sig3 @" + MP3_BITRATE_STR + "(err4_max = " + "{:.2f}".format(
+            plt.title("err4[%] = sig4 - sig3 @" + BITRATE_STR + "(err4_max = " + "{:.2f}".format(
                 err4_percent_max) + ",\n PSNR = " + "{:.2f}".format(psnrErr4) + "dB,\n SNR = " + "{:.2f}".format(
                 snrErr4) + "dB)")
             plt.plot(err4_percent)
@@ -2283,8 +2328,8 @@ def write():
                      str(MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES)+ "(=" + str(MAX_NR_OF_CODED_CHUNKS)+"*"+str(MAX_NR_OF_CODE_FREQUENCIES)+") with fc_start = "+\
                      str(CODE_FREQUENCY_START)+" and "+str(MAX_NR_OF_CODE_FREQUENCIES)+" frequencies coded")
         cbps = nrOfBitsCodedInMsg/(len(sig4)/SAMPLING_FREQUENCY) # coded bits per second
-        logging.info(">>> That is, we coded "+str(cbps)+" bits per second in a "+MP3_BITRATE_STR+"bps container")
-        # Note: we use SAMPLING_FREQUENCY because we have that nr. of samples in one second when we convert to .WAV (derived from .MP3)
+        logging.info(">>> That is, we coded "+str(cbps)+" bits per second in a "+BITRATE_STR+"bps container")
+        # Note: we use SAMPLING_FREQUENCY because we have that nr. of samples in one second when we convert to .WAV (derived from FILE_TYPE)
         logging.info(">>> Which means, with Fs = " + str(SAMPLING_FREQUENCY) + ", a capacity of " + str(cbps * 100.0 / (SAMPLING_FREQUENCY * BITS_PER_SAMPLE)) + "%")
         # TODO: print here also capacity based on size of carrier and message files --> size_msg_file_bytes * 100.0 / size_carrier_file_bytes [%]
         logging.info(">>> Number of Skipped bits = " + str(skip.count(1)))
@@ -2389,25 +2434,36 @@ def read():
     ##################
     start = timer()
 
+    global stego_file
+
     # current frame
     ###############
     cf = currentframe()
     filename = getframeinfo(cf).filename
     logging.info("(Line nr. "+str(cf.f_lineno)+") Enter read() function in file: " + filename)
 
-    # extract .mp3 metadata, only for information
-    #############################################
-    tag = TinyTag.get(stego_file)
-    logging.info(stego_file+" metadata:")
-    logging.info("    duration in seconds = "+str(tag.duration))
-    logging.info("    samplerate = " + str(tag.samplerate))
-    logging.info("    bitrate = " + str(tag.bitrate))
-    logging.info("    channels = " + str(tag.channels))
-    logging.info("    comment = " + str(tag.comment))
+    # extract file metadata
+    # Note: we assume mono, sometimes channels = None or file has no tag data
+    #########################################################################
+    tag_channels = 1
+    try:
+        tag = TinyTag.get(stego_file)
+        tag_channels = tag.channels
+        logging.info(stego_file+" metadata:")
+        logging.info("    duration in seconds = "+str(tag.duration))
+        logging.info("    samplerate = " + str(tag.samplerate))
+        logging.info("    bitrate = " + str(tag.bitrate))
+        logging.info("    channels = " + str(tag.channels))
+        logging.info("    comment = " + str(tag.comment))
+    except Exception as e:
+        # traceback.print_exc()
+        # exit(cf.f_lineno)
+        logging.warning("Warning: "+e.__str__())
+        logging.warning("         assuming mono file..")
 
     # mono?
     #######
-    if tag.channels != 1:
+    if tag_channels == 2:
         logging.error("Error: no mono file!")
         exit(cf.f_lineno)
 
@@ -2420,20 +2476,24 @@ def read():
 
     # convert stego file in .wav format to make it readable by code
     ###############################################################
-    command = "ffmpeg -loglevel quiet -y -i " + stego_file + " -vn -acodec "+WAV_SAMPLE_FORMAT+" -ac 1 -ar " + str(
-        tag.samplerate) + " -f wav " + stego_file + ".wav"
-    p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
-    out, err = p1.communicate()
-    if p1.returncode == 0:
-        pass
+    if FILE_TYPE != ".wav":
+        command = "ffmpeg -loglevel quiet -y -i " + stego_file + " -vn -acodec "+WAV_SAMPLE_FORMAT+" -ac 1 -ar " + str(
+            tag.samplerate) + " -f wav " + stego_file + ".wav"
+        p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
+        out, err = p1.communicate()
+        if p1.returncode == 0:
+            pass
+        else:
+            logging.error("Error: could not run ffmpeg!")
+            exit(cf.f_lineno)
+        p1.terminate()
+        p1.kill()
+        logging.info("Converted " + stego_file + " to " + stego_file + ".wav")
     else:
-        logging.error("Error: could not run ffmpeg!")
-        exit(cf.f_lineno)
-    p1.terminate()
-    p1.kill()
-    logging.info("Converted " + stego_file + " to " + stego_file + ".wav")
+        # we can read the file directly
+        stego_file = stego_file[:-4]
 
-    # read sig4 <- stego_file.wav  (with stego_file.wav <- stego_file.mp3)
+    # read sig4 <- stego_file.wav  (with stego_file.wav <- stego_file+FILE_TYPE)
     ######################################################################
     sig4, samplerate = sf.read(stego_file + ".wav")
     logging.info("Read " + stego_file + ".wav as sig4")
@@ -2454,7 +2514,7 @@ def read():
 
     # del temporary file stego_file.wav
     ###################################
-    if KEEP_TEMP_FILES == False:
+    if KEEP_TEMP_FILES == False and FILE_TYPE != ".wav":
         if os.path.exists(stego_file + ".wav"):
             os.remove(stego_file + ".wav")
             logging.info("Deleted " + stego_file + ".wav")
@@ -2839,7 +2899,7 @@ def read():
         MAX_NR_OF_CODE_FREQUENCIES) + " frequencies coded")
     cbps = nrOfBitsDecodedInMsg / (len(sig4) / tag.samplerate)  # coded bits per second
     logging.info(">>> That is, we decoded " + str(cbps) + " bits per second in a " + str(tag.bitrate)+"k" + "bps container")
-    # Note: we use SAMPLING_FREQUENCY because we have that nr. of samples in one second when we convert to .WAV (derived from .MP3)
+    # Note: we use SAMPLING_FREQUENCY because we have that nr. of samples in one second when we convert to .WAV (derived from FILE_TYPE)
     logging.info(">>> Which means, with Fs = " + str(tag.samplerate) + ", a capacity of " + str(cbps * 100.0 / (tag.samplerate*BITS_PER_SAMPLE)) + "%")
 
     # measure time
@@ -2850,6 +2910,8 @@ def read():
 
     # log output file name
     ######################
+    if FILE_TYPE == ".wav":
+        stego_file = stego_file + ".wav"
     if HIDE == False:
         print("Extracted " + OUT_MSG_FILE + " from " + stego_file)
     else:
