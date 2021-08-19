@@ -104,7 +104,7 @@ parser = argparse.ArgumentParser(prog='as4pgc',
 group = parser.add_mutually_exclusive_group()
 group.add_argument('-w', "--write", action='store', type=str, nargs=2, help='<path and name of file with secret message (any type)> <path and name of file used as a carrier to embed the secret message file (.mp3 mono or stereo)>', metavar='')
 parser.add_argument('-f', "--output_file", action='store', type=str, help='(-w) path and name of stego output file of type .mp3 or (-r) name of message output file', metavar='')
-parser.add_argument('-e', "--encryption", action='store_true', help='encrypt the secret message before hiding it')
+parser.add_argument('-n', "--no_encryption", action='store_false', help='do NOT encrypt the secret message before hiding it')
 group.add_argument('-r', "--read", action='store', type=str, help='<path and name of stego file with hidden secret message (e.g. type .mp3 mono)>', metavar='')
 parser.add_argument('-v', "--verbose", action='store_true', help='display details during program execution')
 parser.add_argument('-l', "--verbose_level", action='store', type=str, choices={"info","warning","error","critical","debug"}, help=': info, warning, error, critical, debug', metavar='')
@@ -428,7 +428,7 @@ logging.info("MESS_UP_CONFIG = " + str(MESS_UP_CONFIG))
 
 # password
 # used for:
-#   encryption of the message file (if option -e provided)
+#   encryption of the message file (if option -n NOT provided)
 #   setting random seeds (if not empty)
 #   encryption of the header
 #   messing-up configuration (if option -m provided)
@@ -625,13 +625,13 @@ if WRITE:
     logging.info("OUT_FILE_NAME = " + OUT_FILE_NAME)
     # COMPRESSION may be set to True later if it really brings a reduction in msg length
     COMPRESSION = False
-    # NOTE: if no pwd is provided but -e was passed
+    # NOTE: if no pwd is provided and option -n was NOT used
     #       then we use the empty pwd as password.
-    ###############################################
-    if not isinstance(args.encryption, type(None)):
-        ENCRYPTION = args.encryption
+    ########################################################
+    if not isinstance(args.no_encryption, type(None)):
+        ENCRYPTION = not args.no_encryption
     else:
-        ENCRYPTION = False
+        ENCRYPTION = True
     logging.info("ENCRYPTION = " + str(ENCRYPTION))
     index_of_last_slash = CARRIER_FILE_NAME.rfind('/')
     index_of_last_point = CARRIER_FILE_NAME.rfind('.')

@@ -120,4 +120,9 @@ pyvenv.cfg
 *.exe
 *.wav
 *.mp3
+*.aac
+*.ogg
+*.m4a
+*.wma
+*.flac
 dist_exe/
