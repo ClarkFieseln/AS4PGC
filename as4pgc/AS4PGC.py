@@ -393,11 +393,13 @@ if os.path.isfile(config_filename):
                 logging.info("        configuration.FFMPEG_VERSION = " + configuration.FFMPEG_VERSION.__str__())
     except (configparser.NoSectionError, configparser.MissingSectionHeaderError):
         logging.info("Error: Exception raised in AS4PGC.py trying to load config file!")
-        logging.info("       Default values will be used. Activate verbose mode with -v to see default values.\n")
+        logging.info("       Default values will be used.\n")
         pass
     except Exception:
         traceback.print_exc()
         exit(cf.f_lineno)
+else:
+    logging.info("No config.ini found. Default values will be used.")
 
 # plausibility checks
 #####################
@@ -417,10 +419,25 @@ if p1.returncode == 0:
         ffmpeg_ver_idx_start = ffmpeg_ver_idx_start + len("ffmpeg version") + 1
         ffmpeg_ver_idx_end = ffmpeg_ver_idx_start + out.__str__()[ffmpeg_ver_idx_start:].find(" ")
         FFMPEG_VERSION = out.__str__()[ffmpeg_ver_idx_start:ffmpeg_ver_idx_end]
+        # FFMPEG_VERSION ok?
+        ####################
         if configuration.FFMPEG_VERSION != FFMPEG_VERSION:
+            logging.warning("Warning: configuration.FFMPEG_VERSION = " + str(configuration.FFMPEG_VERSION))
+            logging.warning("         But the current ffmpeg has version = "+FFMPEG_VERSION)
+            logging.warning("         Remember you need to use the same codec when extracting the hidden message!")
             configuration.FFMPEG_VERSION = FFMPEG_VERSION
-            print("Warning: FFMPEG_VERSION does not contain the correct ffmpeg version = "+FFMPEG_VERSION)
-            print("         Remember you need to use the same codec when extracting the hidden message!")
+            if os.path.isfile(config_filename):
+                input = input("{} (y/n): ".format("Shall FFMPEG_VERSION bet set to " + configuration.FFMPEG_VERSION + " in coinfig.ini?", "n"))
+                if "y" == input.lower() or "yes" == input.lower():
+                    # update FFMPEG_VERSION in config.ini
+                    #####################################
+                    config['myAdvancedConfig']['FFMPEG_VERSION'] = str(configuration.FFMPEG_VERSION)
+                    with open(config_filename, 'w') as configfile:
+                        config.write(configfile)
+                        logging.warning("Updated FFMPEG_VERSION in config.ini")
+            else:
+                logging.warning("         Consider using option -d")
+
 else:
     logging.error("Error: could not get ffmpeg version!")
     exit(cf.f_lineno)
