@@ -13,7 +13,7 @@
 """
     Notes
     ~~~~~
-    Warning! Hiding files inside "big audio files" (e.g. 3 min.) may take up to one hour.
+    Warning! Hiding files inside "big audio files" may take several minutes.
              Formats tested so far: MP3, FLAC, OGG, WAV
     #####################################################################################
     The target of this steganographic technique is hiding information in compressed audio files instead of using the classical
@@ -80,7 +80,7 @@ from sys import exit
 #       if we import it from setup.py the help shows "strange default parameters"...
 # import setup
 # from setup import __version__
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 
 # current frame
 ###############
@@ -1590,11 +1590,10 @@ def write():
             # Saturation?
             #############
             # TODO: remove this old assertion, not needed anymore..(?)
-            for i in range(len(sig3_recovered_mod)):
-                if sig3_recovered_mod[i] > 1.0:
-                    logging.error("Error: saturation after coding - irreparable situation, we may get stuck")
-                    logging.error("       SATURATION in sample i = " + str(i) + " with value = " + str(sig3_recovered_mod[i]))
-                    exit(cf.f_lineno)
+            if max(abs(sig3_recovered_mod)) > 1.0:
+                logging.error("Error: saturation after coding - irreparable situation, we may get stuck")
+                logging.error("       SATURATION in sample i = " + str(i) + " with value = " + str(sig3_recovered_mod[i]))
+                exit(cf.f_lineno)
 
             # Error of coding
             #################
@@ -1678,30 +1677,33 @@ def write():
         wf.write(FILE_NAME + "_mod.wav", SAMPLING_FREQUENCY, audio3_recovered_mod)
         logging.info("Written " + FILE_NAME + "_mod.wav from audio")
 
-        # _mod.wav -> _out + FILE_TYPE
-        # _out + FILE_TYPE is the "SCALED" version of the carrier file, now containing the stego-message
-        ################################################################################################
-        # command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ab " + BITRATE_STR + " -sample_fmt "+SAMPLE_FORMAT+" -metadata comment='comment' " + FILE_NAME + "_out"+ FILE_TYPE
-        if FILE_TYPE == ".ogg":
-            command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -aq 10 -metadata comment='comment' " + FILE_NAME + "_out" + FILE_TYPE
-        elif FILE_TYPE == ".amr":
-            command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ar 8000 -metadata comment='comment' " + FILE_NAME + "_out" + FILE_TYPE
-        else:
-            command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ab " + BITRATE_STR + " -metadata comment='comment' " + FILE_NAME + "_out" + FILE_TYPE
-        p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
-        out, err = p1.communicate()
-        if p1.returncode == 0:
-            pass
-        else:
-            logging.error("Error: could not run ffmpeg!")
-            exit(cf.f_lineno)
-        p1.terminate()
-        p1.kill()
-        logging.info("Converted " + FILE_NAME + "_mod.wav to " + FILE_NAME + "_out"+FILE_TYPE)
-
-        # convert _out + FILE_TYPE to _out.wav to make it readable by code (readback)
-        #############################################################################
+        # for compressed file types:
+        #       _mod.wav -> _out + FILE_TYPE -> _out.wav
+        ################################################
         if FILE_TYPE != ".wav":
+            # _mod.wav -> _out + FILE_TYPE
+            # _out + FILE_TYPE is the "SCALED" version of the carrier file, now containing the stego-message
+            ################################################################################################
+            # command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ab " + BITRATE_STR + " -sample_fmt "+SAMPLE_FORMAT+" -metadata comment='comment' " + FILE_NAME + "_out"+ FILE_TYPE
+            if FILE_TYPE == ".ogg":
+                command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -aq 10 -metadata comment='comment' " + FILE_NAME + "_out" + FILE_TYPE
+            elif FILE_TYPE == ".amr":
+                command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ar 8000 -metadata comment='comment' " + FILE_NAME + "_out" + FILE_TYPE
+            else:
+                command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ab " + BITRATE_STR + " -metadata comment='comment' " + FILE_NAME + "_out" + FILE_TYPE
+            p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
+            out, err = p1.communicate()
+            if p1.returncode == 0:
+                pass
+            else:
+                logging.error("Error: could not run ffmpeg!")
+                exit(cf.f_lineno)
+            p1.terminate()
+            p1.kill()
+            logging.info("Converted " + FILE_NAME + "_mod.wav to " + FILE_NAME + "_out"+FILE_TYPE)
+
+            # convert _out + FILE_TYPE to _out.wav to make it readable by code (readback)
+            #############################################################################
             command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_out" + FILE_TYPE + " -vn -acodec "+WAV_SAMPLE_FORMAT+" -ac 1 -ar " + str(
             SAMPLING_FREQUENCY) + " -f wav " + FILE_NAME + "_out.wav"
             p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
@@ -1716,19 +1718,27 @@ def write():
             logging.info("Converted " + FILE_NAME + "_out" + FILE_TYPE + " to " + FILE_NAME + "_out.wav")
 
         # readback temporary stego file
-        # read sig4 <- _out.wav  (with _out.wav <- _out + FILE_TYPE <- sig3_recovered_mod)
-        ##########################################################################
-        sig4, samplerate = sf.read(FILE_NAME + "_out.wav")
+        #     read sig4 <- _out.wav  (with _out.wav <- _out + FILE_TYPE <- sig3_recovered_mod)
+        # or
+        #     read sig4 <- _mod.wav (for .wav file type)
+        ######################################################################################
+        if FILE_TYPE != ".wav":
+            sig4, samplerate = sf.read(FILE_NAME + "_out.wav")
+        else:
+            sig4, samplerate = sf.read(FILE_NAME + "_mod.wav")
         logging.info("Read " + FILE_NAME + "_out.wav as sig4")
 
         # copy _out + FILE_TYPE -> OUT_FILE_NAME
         # and delete temporary files
-        ################################
+        ########################################
         if DO_LAST == True:
             # Note: if you dont want to copy metadata and permissions use instead:
             #            copyfile(FILE_NAME+"_out+FILE_TYPE", OUT_FILE_NAME)
             ##########################################################
-            copy2(FILE_NAME + "_out"+FILE_TYPE, OUT_FILE_NAME)
+            if FILE_TYPE != ".wav":
+                copy2(FILE_NAME + "_out"+FILE_TYPE, OUT_FILE_NAME)
+            else:
+                copy2(FILE_NAME + "_mod" + FILE_TYPE, OUT_FILE_NAME)
             # hide output file
             ##################
             if HIDE == True:
@@ -1774,7 +1784,7 @@ def write():
 
         # Due to format change .wav -> FILE_TYPE and back to .wav we may have now a different length.
         # So we need to shorten the signal.
-        ############################################################################################
+        #############################################################################################
         if len(sig3) != len(sig4):
             logging.info("Warning: len_sig3("+str(len(sig3))+") != len_sig4("+str(len(sig4))+")..lenghts will be corrected")
             sig4 = sig4[:len(sig3)]
