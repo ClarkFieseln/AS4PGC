@@ -1,5 +1,7 @@
 # as4pgc
-Use "Audio Steganography for Pretty Good Concealing" to hide small files inside compressed audio files (e.g. mp3, flac, ogg) or uncompressed .wav files.
+Hide files inside audio files.
+
+Use "Audio Steganography for Pretty Good Concealing" to compress, encrypt, and hide small files of any type inside compressed audio files (e.g. MP3, FLAC, OGG) or inside uncompressed .WAV files.
 
 ## Installation
 ```sh
