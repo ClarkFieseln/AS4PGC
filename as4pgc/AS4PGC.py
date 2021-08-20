@@ -200,7 +200,7 @@ logging.info("LOGGING_LEVEL = " + str(LOGGING_LEVEL))
 #     - hardcoded default configuration
 #     - configuration read from config.ini
 #     - configuration partially derived from password
-###############################################################
+#####################################################
 @dataclass
 class Configuration:
     # normal configuration:
