@@ -109,7 +109,8 @@ parser = argparse.ArgumentParser(prog='as4pgc',
                                  usage='%(prog)s -w <message_file> <carrier_file> [options]\n       or\n       %(prog)s -r <stego_file> [options]',
                                  description='Hide message_file (e.g. type txt or zip) inside carrier_file (e.g. type mp3, oog, flac, wav)\nor\nExtract message_file from stego_file.')
 group = parser.add_mutually_exclusive_group()
-group.add_argument('-w', "--write", action='store', type=str, nargs=2, help='<path and name of file with secret message (any type)> <path and name of file used as a carrier to embed the secret message file (mono or stereo)>', metavar='')
+group.add_argument('-w', "--write", action='store', type=str, nargs=2, help='<path and name of file with secret message (any type)> <path and name of file used as a carrier to embed \
+                    the secret message file (mono or stereo)>', metavar='')
 parser.add_argument('-f', "--output_file", action='store', type=str, help='(-w) path and name of stego output file of same type as carrier or (-r) name of message output file', metavar='')
 parser.add_argument('-n', "--no_encryption", action='store_true', help='do NOT encrypt the secret message before hiding it')
 group.add_argument('-r', "--read", action='store', type=str, help='<path and name of stego file with hidden secret message (e.g. type .mp3 mono)>', metavar='')
@@ -118,7 +119,8 @@ parser.add_argument('-l', "--verbose_level", action='store', type=str, choices={
 parser.add_argument('-p', "--plot", action='store_true', help='show plots')
 parser.add_argument('-s', "--sound", action='store_true', help='play stego output file')
 parser.add_argument('-a', "--hide", action='store_true', help='hide output file using attrib')
-group.add_argument('-d', "--defaultconfig", action='store_true', help='create default config.ini and exit (file can be edited to customize) - when used together with -m config.ini is messed-up with the password')
+group.add_argument('-d', "--defaultconfig", action='store_true', help='create default config.ini and exit (file can be edited to customize) - when used together with -m config.ini is \
+                    messed-up with the password')
 parser.add_argument('-m', "--messupconfig", action='store_true', help='mess up configuration as derived from password (needs to be used in both write and read calls)')
 parser.add_argument('-V', "--version", action='version', version="%(prog)s " + __version__, help='show version and exit')
 # parse arguments
@@ -461,6 +463,9 @@ try_count = 3
 while (True):
     PASSWORD = getpass("pwd: ")
     if WRITE:
+        # Note: consider https://github.com/microsoft/ptvsd/issues/1723
+        #       The following warning is displayed while debugging, but it's ok:
+        #       Warning: Password input may be echoed.
         pwd_conf = getpass("confirm pwd: ")
     else:
         pwd_conf = PASSWORD
@@ -1245,13 +1250,16 @@ def write():
     # check size of message
     LEN_ENCR_MSG_BITS = (LEN_MSG_BYTES*8//64)*64 + 64
     if(LEN_ENCR_MSG_BITS > MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES):
-        logging.error("Error: message too large! msg_len_bits = "+str(LEN_ENCR_MSG_BITS)+", MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES = "+str(MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES))
-        logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select a different/bigger carrier file or reduce your messaage, e.g. split it.")
+        logging.error("Error: message too large! msg_len_bits = "+str(LEN_ENCR_MSG_BITS)+", MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES = "+\
+                      str(MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES))
+        logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select a different/bigger \
+                        carrier file or reduce your messaage, e.g. split it.")
         if DO_PLOT == True:
             input("Press Enter to exit...")
         exit(cf.f_lineno)
     else:
-        logging.info("In principle, the Message fits inside the carrier, msg_len_bits = " + str(LEN_ENCR_MSG_BITS) + " < MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES = " + str(MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES))
+        logging.info("In principle, the Message fits inside the carrier, msg_len_bits = " + str(LEN_ENCR_MSG_BITS) + " < MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES = " + \
+                     str(MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES))
 
     # deception
     ###########
@@ -1333,11 +1341,14 @@ def write():
         logging.info("total_ignore_and_skip = " + str(total_ignore_and_skip))
         remaining_nr_of_coding_bits = MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES - total_ignore_and_skip
         if (LEN_ENCR_MSG_BITS > remaining_nr_of_coding_bits):
-            logging.error("Error: message too large! msg_len_bits = " + str(LEN_ENCR_MSG_BITS) + ", remaining_nr_of_coding_bits = " + str(remaining_nr_of_coding_bits)+" found in iteration "+str(curr_iteration))
-            logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select a different/bigger carrier file or reduce your messaage, e.g. split it.")
+            logging.error("Error: message too large! msg_len_bits = " + str(LEN_ENCR_MSG_BITS) + ", remaining_nr_of_coding_bits = " + \
+                          str(remaining_nr_of_coding_bits)+" found in iteration "+str(curr_iteration))
+            logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select \
+                            a different/bigger carrier file or reduce your messaage, e.g. split it.")
             exit(cf.f_lineno)
         else:
-            logging.info("The Message still fits inside the carrier, msg_len_bits = " + str(LEN_ENCR_MSG_BITS) + " < remaining_nr_of_coding_bits = " + str(remaining_nr_of_coding_bits)+" in iteration "+str(curr_iteration))
+            logging.info("The Message still fits inside the carrier, msg_len_bits = " + str(LEN_ENCR_MSG_BITS) + " < remaining_nr_of_coding_bits = " + \
+                         str(remaining_nr_of_coding_bits)+" in iteration "+str(curr_iteration))
 
         # DO_LAST ?
         # use "if DO_LAST == Fasle:" so we dont CODE again in case we already obtained a good CODE without errors
@@ -1532,14 +1543,18 @@ def write():
                                 ######################################################################################################################################
                                 if skipForcePlus[i + fc*NR_OF_CHUNKS] == True:
                                     if CODE_WITH_MAGNITUDE == True:
-                                        code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real * (CODE_FACTOR_PERCENT_PLUS*3.0) + 1j * interpolatedFFTn_imag * (CODE_FACTOR_PERCENT_PLUS*3.0)
+                                        code_sig3_chunk_FFT[i][
+                                            CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real * (
+                                                    CODE_FACTOR_PERCENT_PLUS * 3.0) + 1j * interpolatedFFTn_imag * (CODE_FACTOR_PERCENT_PLUS * 3.0)
                                     else:
                                         code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn * (CODE_FACTOR_PERCENT_PLUS*3.0) + 1j * 0.0
                                 # brute-force skip MINUS? - last chance!
                                 ########################################
                                 elif skipForceMinus[i + fc*NR_OF_CHUNKS] == True:
                                     if CODE_WITH_MAGNITUDE == True:
-                                        code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real * (CODE_FACTOR_PERCENT_MINUS*3.0) + 1j * interpolatedFFTn_imag * (CODE_FACTOR_PERCENT_MINUS*3.0)
+                                        code_sig3_chunk_FFT[i][
+                                            CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real * (
+                                                    CODE_FACTOR_PERCENT_MINUS * 3.0) + 1j * interpolatedFFTn_imag * (CODE_FACTOR_PERCENT_MINUS * 3.0)
                                     else:
                                         code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn * (CODE_FACTOR_PERCENT_MINUS*3.0) + 1j * 0.0
                                 # just linearize and skip?
@@ -2016,16 +2031,22 @@ def write():
                                 check2_real = False
                                 if CODE_WITH_MAGNITUDE == True:
                                     diffFFT_n_relative_abs_real = abs(((code_sig4_chunk_FFT_n[i, fc].real - interpolatedFFTn_real) * 100) / interpolatedFFTn_real)
-                                    check2_real = abs(CODE_FACTOR_PERCENT - CODE_FACTOR_PERCENT_DETECTION_THRESHOLD) < diffFFT_n_relative_abs_real < abs(CODE_FACTOR_PERCENT + CODE_FACTOR_PERCENT_DETECTION_THRESHOLD)
+                                    check2_real = abs(
+                                        CODE_FACTOR_PERCENT - CODE_FACTOR_PERCENT_DETECTION_THRESHOLD) < diffFFT_n_relative_abs_real < abs(
+                                        CODE_FACTOR_PERCENT + CODE_FACTOR_PERCENT_DETECTION_THRESHOLD)
                                     diffFFT_n_relative_abs_imag = abs(((code_sig4_chunk_FFT_n[i, fc].imag - interpolatedFFTn_imag) * 100) / interpolatedFFTn_imag)
                                     if CHECK_IMAG_TOO:
-                                        check2_imag = abs(CODE_FACTOR_PERCENT - CODE_FACTOR_PERCENT_DETECTION_THRESHOLD) < diffFFT_n_relative_abs_imag < abs(CODE_FACTOR_PERCENT + CODE_FACTOR_PERCENT_DETECTION_THRESHOLD)
+                                        check2_imag = abs(
+                                            CODE_FACTOR_PERCENT - CODE_FACTOR_PERCENT_DETECTION_THRESHOLD) < diffFFT_n_relative_abs_imag < abs(
+                                            CODE_FACTOR_PERCENT + CODE_FACTOR_PERCENT_DETECTION_THRESHOLD)
                                     else:
                                         check2_imag = True
                                     check2 = (check2_real and check1_real) or (check2_imag and check1_imag)
                                 else:
                                     diffFFT_n_relative_abs = abs(((code_sig4_chunk_FFT_n[i, fc].real - interpolatedFFTn) * 100) / interpolatedFFTn)
-                                    check2 = abs(CODE_FACTOR_PERCENT - CODE_FACTOR_PERCENT_DETECTION_THRESHOLD) < diffFFT_n_relative_abs < abs(CODE_FACTOR_PERCENT + CODE_FACTOR_PERCENT_DETECTION_THRESHOLD)
+                                    check2 = abs(
+                                        CODE_FACTOR_PERCENT - CODE_FACTOR_PERCENT_DETECTION_THRESHOLD) < diffFFT_n_relative_abs < abs(
+                                        CODE_FACTOR_PERCENT + CODE_FACTOR_PERCENT_DETECTION_THRESHOLD)
                                 # .real or .imag in coding range?
                                 #################################
                                 if check2:
@@ -2060,8 +2081,10 @@ def write():
                                                 logging.error("       Nr. of bits to code = " + str(LEN_ENCR_MSG_BITS))
                                                 if DO_PLOT:
                                                     logging.error("       Check figure 12 to see iteration progress..")
-                                                logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select a different/bigger carrier file or reduce your messaage, e.g. split it.")
-                                                logging.error("       Alternatively, you may adapt code_frequency_start/end_bin in config.ini but then the recipient of the message shall know the new range as well.")
+                                                logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise \
+                                                                you need to select a different/bigger carrier file or reduce your messaage, e.g. split it.")
+                                                logging.error("       Alternatively, you may adapt code_frequency_start/end_bin in config.ini but then the recipient of the message \
+                                                                shall know the new range as well.")
                                                 if DO_PLOT == True:
                                                     input("Press Enter to exit...")
                                                 exit(cf.f_lineno)
@@ -2802,13 +2825,16 @@ def read():
                                 LEN_ENCR_MSG_BITS = (LEN_MSG_BYTES*8//64)*64 + 64
                                 # is LEN_ENCR_MSG_BITS plausible?
                                 if(LEN_ENCR_MSG_BITS > MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES):
-                                    logging.error("Error: message too large! msg_len_bits = "+str(LEN_ENCR_MSG_BITS)+", MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES = "+str(MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES))
-                                    logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select a different/bigger carrier file or reduce your messaage, e.g. split it.")
+                                    logging.error("Error: message too large! msg_len_bits = "+str(LEN_ENCR_MSG_BITS)+", MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES = "+\
+                                                    str(MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES))
+                                    logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select a \
+                                                    different/bigger carrier file or reduce your messaage, e.g. split it.")
                                     if DO_PLOT == True:
                                         input("Press Enter to exit...")
                                     exit(cf.f_lineno)
                                 else:
-                                    logging.info("In principle, the Message fits inside the carrier, msg_len_bits = " + str(LEN_ENCR_MSG_BITS) + " < MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES = " + str(MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES))
+                                    logging.info("In principle, the Message fits inside the carrier, msg_len_bits = " + str(LEN_ENCR_MSG_BITS) +\
+                                                 " < MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES = " + str(MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES))
                                 # find file-name of secret-message-file
                                 #######################################
                                 idx_2nd_comma = header[:idx_comma-1].rfind(',')
