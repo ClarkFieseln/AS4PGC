@@ -1322,9 +1322,13 @@ def write():
     nr_bit_decoded = np.zeros(MAX_NR_OF_ITERATIONS)
     nr_bit_coded_fc = np.array([np.zeros(NR_OF_CODE_FREQUENCIES)] * MAX_NR_OF_ITERATIONS)
     nr_bit_decoded_fc = np.array([np.zeros(NR_OF_CODE_FREQUENCIES)] * MAX_NR_OF_ITERATIONS)
+    sig3_recovered_mod = copy.deepcopy(sig3)
+    # TODO: need this? see further below..
+    '''
     code_sig3_chunk_FFT_org = copy.deepcopy(code_sig3_chunk_FFT)
     code_sig3_chunk_FFT_n_org = copy.deepcopy(code_sig3_chunk_FFT_n)
     code_sig3_chunk_FFT_n_mod_org = copy.deepcopy(code_sig3_chunk_FFT_n_mod)
+    '''
 
     # initialization for progress bar
     #################################
@@ -1373,10 +1377,14 @@ def write():
         ############################################################################################
         if True: # DO_LAST == False:
             # clear in each iteration
+            # TODO: need this?
+            '''
             sig3_recovered_mod = copy.deepcopy(sig3)
             code_sig3_chunk_FFT = copy.deepcopy(code_sig3_chunk_FFT_org)
             code_sig3_chunk_FFT_n = copy.deepcopy(code_sig3_chunk_FFT_n_org)
             code_sig3_chunk_FFT_n_mod = copy.deepcopy(code_sig3_chunk_FFT_n_mod_org)
+            '''
+            # reset counter
             nrOfBitsCodedInMsg = 0
 
             # flag to leave loops
