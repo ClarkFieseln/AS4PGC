@@ -1269,8 +1269,8 @@ def write():
     if(LEN_ENCR_MSG_BITS > MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES):
         logging.error("Error: message too large! msg_len_bits = "+str(LEN_ENCR_MSG_BITS)+", MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES = "+\
                       str(MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES))
-        logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select a different/bigger \
-                        carrier file or reduce your messaage, e.g. split it.")
+        logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select \
+        a different/bigger carrier file or reduce your messaage, e.g. split it.")
         if DO_PLOT == True:
             input("Press Enter to exit...")
         exit(cf.f_lineno)
@@ -1375,7 +1375,7 @@ def write():
             logging.error("Error: message too large! msg_len_bits = " + str(LEN_ENCR_MSG_BITS) + ", remaining_nr_of_coding_bits = " + \
                           str(remaining_nr_of_coding_bits)+" found in iteration "+str(curr_iteration))
             logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select \
-                            a different/bigger carrier file or reduce your messaage, e.g. split it.")
+            a different/bigger carrier file or reduce your messaage, e.g. split it.")
             exit(cf.f_lineno)
         else:
             logging.info("The Message still fits inside the carrier, msg_len_bits = " + str(LEN_ENCR_MSG_BITS) + " < remaining_nr_of_coding_bits = " + \
@@ -2877,7 +2877,7 @@ def read():
                                     logging.error("Error: message too large! msg_len_bits = "+str(LEN_ENCR_MSG_BITS)+", MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES = "+\
                                                     str(MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES))
                                     logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select a \
-                                                    different/bigger carrier file or reduce your messaage, e.g. split it.")
+                                    different/bigger carrier file or reduce your messaage, e.g. split it.")
                                     if DO_PLOT == True:
                                         input("Press Enter to exit...")
                                     exit(cf.f_lineno)
