@@ -80,7 +80,7 @@ from sys import exit
 #       if we import it from setup.py the help shows "strange default parameters"...
 # import setup
 # from setup import __version__
-__version__ = "1.0.8"
+__version__ = "1.1.0"
 
 # current frame
 ###############
@@ -1286,6 +1286,16 @@ def write():
     for i in range(len(deception)):
         deception[i] = system_random.randint(0, 1)
 
+    # fc_offset
+    # Shuffle coding frequencies a little bit by randomly adding a fix offset.
+    # This notably reduces coding visibility in frequency domain!
+    ##########################################################################
+    fc_offset = bitarray(int(NR_OF_CHUNKS)*NR_OF_CODE_FREQUENCIES)
+    # Note: with +7 we avoid inventing a new seed
+    random.seed(SEED_IGNORE_CODE_DECEPTION+7)
+    for i in range(len(fc_offset)):
+        fc_offset[i] = random.randint(0, 1)
+
     # fill message with random bits
     # bits beyond message will be used as padding for deception
     ###########################################################
@@ -1403,7 +1413,7 @@ def write():
 
                     # loop FCs
                     ##########
-                    for fc in range(0, NR_OF_CODE_FREQUENCIES_TO_CODE, INTERLEAVED_FC):
+                    for fc in range(0 + fc_offset[i]*(INTERLEAVED_FC//2), NR_OF_CODE_FREQUENCIES_TO_CODE, INTERLEAVED_FC):
                         # leave loop?
                         if leave_loops == True:
                             break
@@ -1914,6 +1924,13 @@ def write():
         ############################
         nrOfMsgErr = 0
 
+        # fc_offset
+        ###########
+        fc_offset2 = bitarray(int(NR_OF_CHUNKS) * NR_OF_CODE_FREQUENCIES)
+        random.seed(SEED_IGNORE_CODE_DECEPTION + 7)
+        for i in range(len(fc_offset2)):
+            fc_offset2[i] = random.randint(0, 1)
+
         # ignore bits in message
         # generate random bits AGAIN as if we read this file for the first time...
         # NOTE: we need reproducible/repeatable random numbers, therefore we cannot use SystemRandom()
@@ -1950,7 +1967,7 @@ def write():
 
                 # loop coding frequencies
                 #########################
-                for fc in range(0, NR_OF_CODE_FREQUENCIES_TO_CODE, INTERLEAVED_FC):
+                for fc in range(0 + fc_offset2[i]*(INTERLEAVED_FC//2), NR_OF_CODE_FREQUENCIES_TO_CODE, INTERLEAVED_FC):
                     # leave loop?
                     if leave_loops == True:
                         break
@@ -2222,7 +2239,7 @@ def write():
                 break
             # loop coding frequencies
             #########################
-            for fc in range(0, NR_OF_CODE_FREQUENCIES, INTERLEAVED_FC):
+            for fc in range(0 + fc_offset2[i*INTERLEAVED_CHUNKS]*(INTERLEAVED_FC//2), NR_OF_CODE_FREQUENCIES, INTERLEAVED_FC):
                 # Loop as long as message (encrypted org-msg) not yet decoded.
                 # NOTE: we coded bits beyond this lenght and they may even be incorrectly coded (above or below threshold),
                 #       but we dont care. That is good for "more deceiving" because they are coded in an incorrect way
@@ -2595,6 +2612,13 @@ def read():
         for fcode in range(NR_OF_CODE_FREQUENCIES):
             code_sig4_chunk_FFT_n[i][fcode] = code_sig4_chunk_FFT[i][fcode + CODE_FREQUENCY_START_BIN]
 
+    # fc_offset
+    ###########
+    fc_offset2 = bitarray(int(NR_OF_CHUNKS)*NR_OF_CODE_FREQUENCIES)
+    random.seed(SEED_IGNORE_CODE_DECEPTION+7)
+    for i in range(len(fc_offset2)):
+        fc_offset2[i] = random.randint(0, 1)
+
     # bits to be ignored in "message"
     #################################
     ignore2 = bitarray(int(NR_OF_CHUNKS) * NR_OF_CODE_FREQUENCIES)
@@ -2621,7 +2645,7 @@ def read():
         if i % INTERLEAVED_CHUNKS == 0:
             # loop coding frequencies
             #########################
-            for fc in range(0, NR_OF_CODE_FREQUENCIES, INTERLEAVED_FC):
+            for fc in range(0 + fc_offset2[i]*(INTERLEAVED_FC//2), NR_OF_CODE_FREQUENCIES, INTERLEAVED_FC):
                 # update progress bar
                 #####################
                 print_progress(i//INTERLEAVED_CHUNKS*NR_OF_CODE_FREQUENCIES + fc, total_items, prefix='Progress:', suffix='Complete', bar_length=50)
@@ -2796,7 +2820,7 @@ def read():
             break
         # loop coding frequencies
         #########################
-        for fc in range(0, NR_OF_CODE_FREQUENCIES, INTERLEAVED_FC):
+        for fc in range(0 + fc_offset2[i*INTERLEAVED_CHUNKS]*(INTERLEAVED_FC//2), NR_OF_CODE_FREQUENCIES, INTERLEAVED_FC):
             # loop as long as message (encrypted org-msg) not yet completely decoded
             # NOTE: we probably coded bits beyond this length and they may even be incorrectly coded (above or below threshold)
             #       but we dont care. That may even be good for "more deceiving" because they are coded in an incorrect way
