@@ -252,7 +252,7 @@ configuration = Configuration(
     0.99, # IGNORE_THRESHOLD - 0.99 will result in approx. 1% of bits being NOT coded
     True, # DO_IGNORE_SOME
     True, # DO_DECEPTION
-    20, # BSF_MIN_ATTENUATION_DB
+    85, # BSF_MIN_ATTENUATION_DB
     0.0083, # SKIP_CODING_IF_MIN_EXCEEDED_DEFAULT - depends on NORMALIZE_SETTINGS
     9999.9, # 0.1000, # SKIP_CODING_IF_MAX_EXCEEDED_DEFAULT - depends on NORMALIZE_SETTINGS
     2, # INTERLEAVED_CHUNKS
@@ -263,7 +263,7 @@ configuration = Configuration(
     # advanced configuration:
     #########################
     120, # 240, # 120, # CODE_FREQUENCY_START_BIN
-    189, # 239 # 359 # 399, # 199, # CODE_FREQUENCY_END_BIN
+    179, # 239 # 359 # 399, # 199, # CODE_FREQUENCY_END_BIN
     True, # CHECK_IMAG_TOO
     False, # KEEP_TEMP_FILES
     320000, # BITRATE
