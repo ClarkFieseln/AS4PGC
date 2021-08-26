@@ -28,7 +28,7 @@
     coding-frequencies.
     Coding is done on alternating chunks, using unmodified chunks as reference points.
     A linear interpolation between these reference points determines the threshold between ones and zeros.
-    It is important that the FFT-series has consecutive samples that are highly correlated. 
+    It is important that the FFT-series has consecutive samples that are highly correlated.
 """
 
 # Module description:
