@@ -427,8 +427,8 @@ if p1.returncode == 0:
             logging.warning("         Remember you need to use the same codec when extracting the hidden message!")
             configuration.FFMPEG_VERSION = FFMPEG_VERSION
             if os.path.isfile(config_filename):
-                input = input("{} (y/n): ".format("Shall FFMPEG_VERSION bet set to " + configuration.FFMPEG_VERSION + " in coinfig.ini?", "n"))
-                if "y" == input.lower() or "yes" == input.lower():
+                input1 = input("{} (y/n): ".format("Shall FFMPEG_VERSION be set to " + configuration.FFMPEG_VERSION + " in config.ini?", "n"))
+                if "y" == input1.lower() or "yes" == input1.lower():
                     # update FFMPEG_VERSION in config.ini
                     #####################################
                     config['myAdvancedConfig']['FFMPEG_VERSION'] = str(configuration.FFMPEG_VERSION)
