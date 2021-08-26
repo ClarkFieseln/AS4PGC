@@ -80,7 +80,7 @@ from sys import exit
 #       if we import it from setup.py the help shows "strange default parameters"...
 # import setup
 # from setup import __version__
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 # current frame
 ###############
