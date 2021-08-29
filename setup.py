@@ -7,7 +7,7 @@ HERE = pathlib.Path(__file__).parent
 # The text of the README file
 README = (HERE / "README.md").read_text()
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 
 # This call to setup() does all the work
 setup(
@@ -38,7 +38,7 @@ setup(
     include_package_data=True,
     install_requires=['SoundFile','matplotlib','dataclasses','cryptography','numpy','scipy','bitarray','tinytag','simpleaudio'],
     dependency_links=['https://www.ffmpeg.org/'],
-    keywords=['steganography','stego','audio','hide','cryptography','encryption','compression','security','cybersecurity','mp3','flac','ogg','wav','windows','linux'],
+    keywords=['steganography','stego','audio','hide','cryptography>=3.4.7','encryption','compression','security','cybersecurity','mp3','flac','ogg','wav','windows','linux'],
     entry_points={
         "console_scripts": [
             "as4pgc=as4pgc.AS4PGC:main",
