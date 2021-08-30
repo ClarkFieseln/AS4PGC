@@ -38,6 +38,8 @@
 # write(): hide message in carrier and output result in stego file
 # read(): extract hidden message from stego file
 # main(): call write() if -w option or read() if -r option
+# psnr(): calculate Peak Signal To Noise Ratio
+# snr(): calulate Signal To Noise Ratio
 
 # imports
 #########
