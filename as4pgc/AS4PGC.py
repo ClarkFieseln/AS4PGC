@@ -40,6 +40,8 @@
 # main(): call write() if -w option or read() if -r option
 # psnr(): calculate Peak Signal To Noise Ratio
 # snr(): calulate Signal To Noise Ratio
+# nextpow2(): helper function for freq_shift()
+# freq_shift(): frequency shift a signal using SSB modulation
 
 # imports
 #########
