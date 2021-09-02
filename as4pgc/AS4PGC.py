@@ -509,6 +509,9 @@ while (True):
             #       We still have some randomness derived from deception[] and ignore[] which will generate different compressed audio files
             #       in each iteration, resulting in small variations during normalization/scaling of the audio signal.
             logging.warning("Warning: no pwd provided, unmodified seeds will be used.")
+        # this seed is always derived from password
+        configuration.SEED_F_SHUFFLE = int.from_bytes(KEY_FROM_PASSWORD[len(KEY_FROM_PASSWORD) // 2:len(KEY_FROM_PASSWORD) // 2 + len(KEY_FROM_PASSWORD) // 4], byteorder='little',signed=False)
+        logging.info("configuration.SEED_F_SHUFFLE derived from password = " + str(configuration.SEED_F_SHUFFLE))
         if WRITE == True:
             print("You'll need this password to recover the embedded message, keep it safe!")
         break
@@ -751,6 +754,7 @@ PLOT_3D = False and DO_PLOT # just a test, but it seems to be extremely slow!
 PLOT_BIT_ERR_IN_ITERATIONS = True and DO_PLOT
 # Note: no matter which sampling rate the input file has, we force the output to SAMPLING_FREQUENCY.
 SAMPLING_FREQUENCY = configuration.SAMPLING_FREQUENCY
+T = 1.0 / SAMPLING_FREQUENCY
 NYQUIST_FREQUENCY = (SAMPLING_FREQUENCY/2.0)
 NUM_CHANNELS = 1
 BYTES_PER_SAMPLE = 2
@@ -804,6 +808,7 @@ DO_DECEPTION = configuration.DO_DECEPTION
 SEED_IGNORE = configuration.SEED_IGNORE
 # SEED_IGNORE_CODE_DECEPTION also used to init dummy bits for padding after message (for cases with no encryption).
 SEED_IGNORE_CODE_DECEPTION = configuration.SEED_IGNORE_CODE_DECEPTION
+SEED_F_SHUFFLE = configuration.SEED_F_SHUFFLE
 # IGNORE_THRESHOLD -> = 0.99 will result in approx. 1% of bits being NOT coded in order to confuse attacker.
 IGNORE_THRESHOLD = configuration.IGNORE_THRESHOLD
 SEED_THRESHOLD = configuration.SEED_THRESHOLD
@@ -1182,7 +1187,7 @@ def write():
     sig3_max = max(abs(sig3))
     if sig3_max > 1.0:
         logging.error("Error: saturation after scaling - irreparable situation, we may get stuck")
-        logging.error("       SATURATION in sample i = " + str(i) + " with value = " + str(sig3[i]))
+        logging.error("       SATURATION with value = " + str(sig3_max))
         exit(cf.f_lineno)
 
     # plot sig
@@ -1199,7 +1204,6 @@ def write():
     # data for FFT
     ##############
     N = len(sig3)
-    T = 1.0 / SAMPLING_FREQUENCY
     xf = np.fft.rfftfreq(N, d=T)
 
     # FFT of sig
@@ -1226,10 +1230,23 @@ def write():
     # NR_OF_CODE_FREQUENCIES_TO_CODE may be reduced if higher fc not codeable.
     ##############################################################################################
     NR_OF_CODE_FREQUENCIES_TO_CODE = NR_OF_CODE_FREQUENCIES
+    NR_OF_CHUNKS = int(len(sig3) / CHUNK_LEN_SAMPLES)
+
+    # random_f_shift
+    # Shuffle chunks by randomly shifting their frequencies.
+    # This notably reduces coding visibility in frequency domain!
+    #############################################################
+    random_f_shift = np.zeros(NR_OF_CHUNKS)
+    for i in range(len(random_f_shift)):
+        # TODO: improve this
+        #       up to now randomizing shifts leads to unstable behavior (no convergence)
+        #       it is probably difficult to code all signal details in a compressed audio format
+        #       for now we use module function
+        if i % (INTERLEAVED_CHUNKS * 5) == 0:
+            random_f_shift[i] = FFT_BIN_WIDTH_HZ / 2.0
 
     # fill FFT-series
     #################
-    NR_OF_CHUNKS = int(len(sig3) / CHUNK_LEN_SAMPLES)
     MAX_NR_OF_CODED_CHUNKS = int(NR_OF_CHUNKS / INTERLEAVED_CHUNKS)
     MAX_NR_OF_CODE_FREQUENCIES = int(NR_OF_CODE_FREQUENCIES_TO_CODE/INTERLEAVED_FC)
     logging.info("MAX_NR_OF_CODED_CHUNKS = "+str(MAX_NR_OF_CODED_CHUNKS))
@@ -1239,7 +1256,9 @@ def write():
     code_sig3_chunk_FFT_n_mod = np.array([np.zeros(NR_OF_CODE_FREQUENCIES,dtype=complex)] * NR_OF_CHUNKS)
     for i in range(NR_OF_CHUNKS):
         code_sig3_part = sig3[i * CHUNK_LEN_SAMPLES:i * CHUNK_LEN_SAMPLES + CHUNK_LEN_SAMPLES]
-        code_sig3_chunk_FFT[i] = rfft(code_sig3_part)
+        # Shift signal's frequency components by using the Hilbert transform to perform SSB modulation.
+        code_sig3_part_shifted = freq_shift(code_sig3_part, random_f_shift[i], T)
+        code_sig3_chunk_FFT[i] = rfft(code_sig3_part_shifted)
         for fcode in range(NR_OF_CODE_FREQUENCIES):
             code_sig3_chunk_FFT_n[i][fcode] = code_sig3_chunk_FFT[i][fcode+CODE_FREQUENCY_START_BIN]
             code_sig3_chunk_FFT_n_mod[i][fcode] = code_sig3_chunk_FFT[i][fcode+CODE_FREQUENCY_START_BIN]
@@ -1288,11 +1307,14 @@ def write():
 
     # fc_offset
     # Shuffle coding frequencies a little bit by randomly adding a fix offset.
-    # This notably reduces coding visibility in frequency domain!
+    # This reduces coding visibility in frequency domain!
     ##########################################################################
     fc_offset = bitarray(int(NR_OF_CHUNKS)*NR_OF_CODE_FREQUENCIES)
-    # Note: with +7 we avoid inventing a new seed
-    random.seed(SEED_IGNORE_CODE_DECEPTION+7)
+    # TODO: check random "thingy" again,
+    #       too much randomness?
+    #       why dependency with SEED_IGNORE_CODE_DECEPTION ?
+    # workaround:
+    random.seed(SEED_IGNORE_CODE_DECEPTION+7) # random.seed(SEED_F_SHUFFLE)
     for i in range(len(fc_offset)):
         fc_offset[i] = random.randint(0, 1)
 
@@ -1333,12 +1355,6 @@ def write():
     nr_bit_coded_fc = np.array([np.zeros(NR_OF_CODE_FREQUENCIES)] * MAX_NR_OF_ITERATIONS)
     nr_bit_decoded_fc = np.array([np.zeros(NR_OF_CODE_FREQUENCIES)] * MAX_NR_OF_ITERATIONS)
     sig3_recovered_mod = copy.deepcopy(sig3)
-    # TODO: need this? see further below..
-    '''
-    code_sig3_chunk_FFT_org = copy.deepcopy(code_sig3_chunk_FFT)
-    code_sig3_chunk_FFT_n_org = copy.deepcopy(code_sig3_chunk_FFT_n)
-    code_sig3_chunk_FFT_n_mod_org = copy.deepcopy(code_sig3_chunk_FFT_n_mod)
-    '''
 
     # initialization for progress bar
     #################################
@@ -1386,14 +1402,6 @@ def write():
         # or use "if True:" to code again just to show the corresponding plots in the last iteration
         ############################################################################################
         if True: # DO_LAST == False:
-            # clear in each iteration
-            # TODO: need this?
-            '''
-            sig3_recovered_mod = copy.deepcopy(sig3)
-            code_sig3_chunk_FFT = copy.deepcopy(code_sig3_chunk_FFT_org)
-            code_sig3_chunk_FFT_n = copy.deepcopy(code_sig3_chunk_FFT_n_org)
-            code_sig3_chunk_FFT_n_mod = copy.deepcopy(code_sig3_chunk_FFT_n_mod_org)
-            '''
             # reset counter
             nrOfBitsCodedInMsg = 0
 
@@ -1580,18 +1588,18 @@ def write():
                                     if CODE_WITH_MAGNITUDE == True:
                                         code_sig3_chunk_FFT[i][
                                             CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real * (
-                                                    CODE_FACTOR_PERCENT_PLUS * 3.0) + 1j * interpolatedFFTn_imag * (CODE_FACTOR_PERCENT_PLUS * 3.0)
+                                                    CODE_FACTOR_PERCENT_PLUS * 2.0) + 1j * interpolatedFFTn_imag * (CODE_FACTOR_PERCENT_PLUS * 2.0)
                                     else:
-                                        code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn * (CODE_FACTOR_PERCENT_PLUS*3.0) + 1j * 0.0
+                                        code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn * (CODE_FACTOR_PERCENT_PLUS*2.0) + 1j * 0.0
                                 # brute-force skip MINUS? - last chance!
                                 ########################################
                                 elif skipForceMinus[i + fc*NR_OF_CHUNKS] == True:
                                     if CODE_WITH_MAGNITUDE == True:
                                         code_sig3_chunk_FFT[i][
                                             CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real * (
-                                                    CODE_FACTOR_PERCENT_MINUS * 3.0) + 1j * interpolatedFFTn_imag * (CODE_FACTOR_PERCENT_MINUS * 3.0)
+                                                    CODE_FACTOR_PERCENT_MINUS * 2.0) + 1j * interpolatedFFTn_imag * (CODE_FACTOR_PERCENT_MINUS * 2.0)
                                     else:
-                                        code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn * (CODE_FACTOR_PERCENT_MINUS*3.0) + 1j * 0.0
+                                        code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn * (CODE_FACTOR_PERCENT_MINUS*2.0) + 1j * 0.0
                                 # just linearize and skip?
                                 ##########################
                                 elif (INTERPOLATE_AND_DUMMY_CODE_ALL == True) or (nrOfBitsCodedInMsg < LEN_ENCR_MSG_BITS):
@@ -1604,13 +1612,6 @@ def write():
                                     # and mark as skipped
                                     #####################
                                     skip[i + fc * NR_OF_CHUNKS] = True
-
-                            # set code_sig3_chunk_FFT_n_mod[i][fc]
-                            # and inverse FFT to obtain coded audio chunk (in time domain = sample space)
-                            #############################################################################
-                            code_sig3_chunk_FFT_n_mod[i][fc] = code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN+fc]
-                            sig3_recovered_part = irfft(code_sig3_chunk_FFT[i],n=CHUNK_LEN_SAMPLES)
-                            sig3_recovered_mod[i * CHUNK_LEN_SAMPLES:i * CHUNK_LEN_SAMPLES + CHUNK_LEN_SAMPLES] = sig3_recovered_part
                         # ignore bit
                         ############
                         else:
@@ -1632,6 +1633,18 @@ def write():
                             else:
                                 logging.debug("Ignoring bit of message at position "+str(i+fc*NR_OF_CHUNKS)+", no deception done")
 
+                    # set code_sig3_chunk_FFT_n_mod[i][fc]
+                    # and inverse FFT to obtain coded audio chunk (in time domain = sample space)
+                    #############################################################################
+                    for fc in range(0 + fc_offset[i] * (INTERLEAVED_FC // 2), NR_OF_CODE_FREQUENCIES_TO_CODE,INTERLEAVED_FC):
+                        code_sig3_chunk_FFT_n_mod[i][fc] = code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc]
+                        sig3_recovered_part = irfft(code_sig3_chunk_FFT[i], n=CHUNK_LEN_SAMPLES)
+                        # unshift
+                        if i % (INTERLEAVED_CHUNKS * 5) == 0:
+                            sig3_recovered_part = freq_shift(sig3_recovered_part, -random_f_shift[i], T)
+
+                        sig3_recovered_mod[i * CHUNK_LEN_SAMPLES:i * CHUNK_LEN_SAMPLES + CHUNK_LEN_SAMPLES] = sig3_recovered_part
+
             # message written
             #################
             logging.info("Written message of length nrOfBitsCodedInMsg = "+str(nrOfBitsCodedInMsg))
@@ -1639,10 +1652,9 @@ def write():
 
             # Saturation?
             #############
-            # TODO: remove this old assertion, not needed anymore..(?)
             if max(abs(sig3_recovered_mod)) > 1.0:
                 logging.error("Error: saturation after coding - irreparable situation, we may get stuck")
-                logging.error("       SATURATION in sample i = " + str(i) + " with value = " + str(sig3_recovered_mod[i]))
+                logging.error("       SATURATION with value = " + str(max(abs(sig3_recovered_mod))))
                 exit(cf.f_lineno)
 
             # Error of coding
@@ -1889,13 +1901,21 @@ def write():
             plt.pause(.001)
             logging.info("Plotted err4[%]")
 
+        # random_f_shift2
+        #################
+        random_f_shift2 = np.zeros(NR_OF_CHUNKS)
+        for i in range(len(random_f_shift2)):
+            if i % (INTERLEAVED_CHUNKS * 5) == 0:
+                random_f_shift2[i] = FFT_BIN_WIDTH_HZ / 2.0
+
         # fill FFT-series
         #################
         code_sig4_chunk_FFT = [np.zeros(CHUNK_LEN_SAMPLES//2, dtype=complex)] * NR_OF_CHUNKS
         code_sig4_chunk_FFT_n = np.array([np.zeros(NR_OF_CODE_FREQUENCIES, dtype=complex)] * NR_OF_CHUNKS)
         for i in range(NR_OF_CHUNKS):
             code_sig4_part = sig4[i * CHUNK_LEN_SAMPLES:i * CHUNK_LEN_SAMPLES + CHUNK_LEN_SAMPLES]
-            code_sig4_chunk_FFT[i] = rfft(code_sig4_part)
+            code_sig4_part_shifted = freq_shift(code_sig4_part, random_f_shift2[i], T)
+            code_sig4_chunk_FFT[i] = rfft(code_sig4_part_shifted)
             for fcode in range(NR_OF_CODE_FREQUENCIES):
                 code_sig4_chunk_FFT_n[i][fcode] = code_sig4_chunk_FFT[i][fcode+CODE_FREQUENCY_START_BIN]
 
@@ -2124,9 +2144,9 @@ def write():
                                                 if DO_PLOT:
                                                     logging.error("       Check figure 12 to see iteration progress..")
                                                 logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise \
-                                                                you need to select a different/bigger carrier file or reduce your messaage, e.g. split it.")
+                                                you need to select a different/bigger carrier file or reduce your messaage, e.g. split it.")
                                                 logging.error("       Alternatively, you may adapt code_frequency_start/end_bin in config.ini but then the recipient of the message \
-                                                                shall know the new range as well.")
+                                                shall know the new range as well.")
                                                 if DO_PLOT == True:
                                                     input("Press Enter to exit...")
                                                 exit(cf.f_lineno)
@@ -2602,13 +2622,22 @@ def read():
     MAX_NR_OF_CODE_FREQUENCIES = int(NR_OF_CODE_FREQUENCIES/INTERLEAVED_FC)
     logging.info("MAX_NR_OF_CODE_FREQUENCIES = " + str(MAX_NR_OF_CODE_FREQUENCIES))
 
+    # random_f_shift2
+    #################
+    random_f_shift2 = np.zeros(NR_OF_CHUNKS)
+    for i in range(len(random_f_shift2)):
+        if i % (INTERLEAVED_CHUNKS * 5) == 0:
+            random_f_shift2[i] = FFT_BIN_WIDTH_HZ / 2.0
+
     # fill FFT-series
     #################
     code_sig4_chunk_FFT = [np.zeros(CHUNK_LEN_SAMPLES // 2, dtype=complex)] * NR_OF_CHUNKS
     code_sig4_chunk_FFT_n = np.array([np.zeros(NR_OF_CODE_FREQUENCIES, dtype=complex)] * NR_OF_CHUNKS)
     for i in range(NR_OF_CHUNKS):
         code_sig4_part = sig4[i * CHUNK_LEN_SAMPLES:i * CHUNK_LEN_SAMPLES + CHUNK_LEN_SAMPLES]
-        code_sig4_chunk_FFT[i] = rfft(code_sig4_part)
+        # Frequency shift:
+        code_sig4_part_shifted = freq_shift(code_sig4_part, random_f_shift2[i], T)
+        code_sig4_chunk_FFT[i] = rfft(code_sig4_part_shifted)
         for fcode in range(NR_OF_CODE_FREQUENCIES):
             code_sig4_chunk_FFT_n[i][fcode] = code_sig4_chunk_FFT[i][fcode + CODE_FREQUENCY_START_BIN]
 
@@ -3049,6 +3078,30 @@ def snr(array1, array2):
     if (ASig != 0.0) & (ADiff != 0.0):
         snr = 20.0 * math.log10(ASig / ADiff)
     return snr
+
+
+
+# nextpow2()
+############
+# from https://gist.github.com/lebedov/4428122
+def nextpow2(x):
+    """Return the first integer N such that 2**N >= abs(x)"""
+    return int(np.ceil(np.log2(np.abs(x))))
+
+
+
+# freq_shift()
+##############
+# from https://gist.github.com/lebedov/4428122
+def freq_shift(x, f_shift, dt):
+    """Shift the specified signal by the specified frequency."""
+    # Pad the signal with zeros to prevent the FFT invoked by the transform from
+    # slowing down the computation:
+    N_orig = len(x)
+    N_padded = 2 ** nextpow2(N_orig)
+    t = np.arange(0, N_padded)
+    return (signal.hilbert(np.hstack((x, np.zeros(N_padded - N_orig, x.dtype)))) * np.exp(
+        2j * np.pi * f_shift * dt * t))[:N_orig].real
 
 
 
