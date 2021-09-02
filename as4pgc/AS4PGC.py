@@ -80,7 +80,7 @@ from sys import exit
 #       if we import it from setup.py the help shows "strange default parameters"...
 # import setup
 # from setup import __version__
-__version__ = "1.1.3"
+__version__ = "1.1.4"
 
 # current frame
 ###############
@@ -1241,7 +1241,7 @@ def write():
         # TODO: improve this
         #       up to now randomizing shifts leads to unstable behavior (no convergence)
         #       it is probably difficult to code all signal details in a compressed audio format
-        #       for now we use module function
+        #       for now we use module function. Try a polynomial()..
         if i % (INTERLEAVED_CHUNKS * 5) == 0:
             random_f_shift[i] = FFT_BIN_WIDTH_HZ / 2.0
 
