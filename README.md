@@ -7,11 +7,11 @@ Use "Audio Steganography for Pretty Good Concealing" to compress, encrypt, and h
 ```sh
   pip install as4pgc
   
-  sudo pip install -r requirements.txt
+  pip install -r requirements.txt  # in linux you shall prepend sudo
   
-  sudo apt install ffmpeg
+  sudo apt install ffmpeg  # in linux
 ```
-You can also download ffmpeg from here:
+For Windows you can download ffmpeg from here:
 https://www.ffmpeg.org/
 
 ## How to use it?
