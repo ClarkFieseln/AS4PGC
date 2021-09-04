@@ -111,7 +111,7 @@ LEVEL_OF_COMPRESSION = 9
 #################
 parser = argparse.ArgumentParser(prog='as4pgc',
                                  usage='%(prog)s -w <message_file> <carrier_file> [options]\n       or\n       %(prog)s -r <stego_file> [options]',
-                                 description='Hide message_file (e.g. type txt or zip) inside carrier_file (e.g. type mp3, oog, flac, wav)\nor\nExtract message_file from stego_file.')
+                                 description='Hide message_file (e.g. type txt or zip) inside carrier_file (e.g. type mp3, ogg, flac, wav)\nor\nExtract message_file from stego_file.')
 group = parser.add_mutually_exclusive_group()
 group.add_argument('-w', "--write", action='store', type=str, nargs=2, help='<path and name of file with secret message (any type)> <path and name of file used as a carrier to embed \
                     the secret message file (mono or stereo)>', metavar='')
