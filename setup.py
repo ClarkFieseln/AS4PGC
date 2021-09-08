@@ -36,9 +36,9 @@ setup(
     ],
     packages=["as4pgc"],
     include_package_data=True,
-    install_requires=['SoundFile','matplotlib','dataclasses','cryptography','numpy','scipy','bitarray','tinytag','simpleaudio'],
+    install_requires=['SoundFile','matplotlib','dataclasses','cryptography>=3.4.7','numpy','scipy','bitarray','tinytag','simpleaudio'],
     dependency_links=['https://www.ffmpeg.org/'],
-    keywords=['steganography','stego','audio','hide','cryptography>=3.4.7','encryption','compression','security','cybersecurity','mp3','flac','ogg','wav','windows','linux'],
+    keywords=['steganography','stego','audio','hide','cryptography','encryption','compression','security','cybersecurity','mp3','flac','ogg','wav','windows','linux'],
     entry_points={
         "console_scripts": [
             "as4pgc=as4pgc.AS4PGC:main",
