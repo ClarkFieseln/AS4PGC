@@ -41,6 +41,10 @@ Configuration settings can be adapted in config.ini (detailed documentation to b
 
 https://github.com/ClarkFieseln/as4pgc
 
+## Article in Code Project
+
+https://www.codeproject.com/Articles/5313626/Audio-Steganography-for-Pretty-Good-Concealing-AS4
+
 ## License
 
 (c) 2021 Clark Fieseln
