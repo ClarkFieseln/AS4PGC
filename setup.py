@@ -42,10 +42,11 @@ setup(
     entry_points={
         "console_scripts": [
             "as4pgc=as4pgc.AS4PGC:main",
-        ],
-        project_urls={  # Optional
-        'Source': 'https://github.com/ClarkFieseln/as4pgc',
-    }
+        ]
+    },
+    project_urls={  # Optional
+    'Source': 'https://github.com/ClarkFieseln/as4pgc',
+    },
 )
 
 
