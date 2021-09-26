@@ -1,6 +1,10 @@
 import pathlib
 from setuptools import setup
 
+if sys.version_info < (3,6):
+    print("as4pgc requires Python 3.6 or higher please upgrade")
+    sys.exit(1)
+
 # The directory containing this file
 HERE = pathlib.Path(__file__).parent
 
