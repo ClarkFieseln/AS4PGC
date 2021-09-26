@@ -7,7 +7,7 @@ HERE = pathlib.Path(__file__).parent
 # The text of the README file
 README = (HERE / "README.md").read_text()
 
-__version__ = "1.1.5"
+__version__ = "1.1.6"
 
 # This call to setup() does all the work
 setup(
