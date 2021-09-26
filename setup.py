@@ -16,7 +16,7 @@ setup(
     description = "Audio Steganography: compress, encrypt and hide a secret file inside an audio file (MP3, WAV, OGG, FLAC, ..)",
     long_description=README,
     long_description_content_type="text/markdown",
-    url="https://github.com/ClarkFieseln/as4pgc",
+    url="https://www.codeproject.com/Articles/5313626/Audio-Steganography-for-Pretty-Good-Concealing-AS4",
     author="Clark Fieseln",
     author_email="",
     license="MIT",
@@ -42,8 +42,10 @@ setup(
     entry_points={
         "console_scripts": [
             "as4pgc=as4pgc.AS4PGC:main",
-        ]
-    },
+        ],
+        project_urls={  # Optional
+        'Source': 'https://github.com/ClarkFieseln/as4pgc',
+    }
 )
 
 
