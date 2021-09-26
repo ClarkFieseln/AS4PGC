@@ -36,7 +36,9 @@ Use the option -h for more information:
   as4pgc -h
 ```
 
-Configuration settings can be adapted in config.ini (detailed documentation to be provided soon).
+Configuration settings can be adapted in config.ini.
+For detailed documentation check the Article in Code Project. The link is provided further below.
+
 ## GitHub Project
 
 https://github.com/ClarkFieseln/as4pgc
