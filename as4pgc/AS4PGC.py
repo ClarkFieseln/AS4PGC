@@ -84,7 +84,7 @@ from sys import exit
 #       if we import it from setup.py the help shows "strange default parameters"...
 # import setup
 # from setup import __version__
-__version__ = "1.1.5"
+__version__ = "1.1.6"
 
 # current frame
 ###############
@@ -921,7 +921,7 @@ if BSF_MIN_ATTENUATION_DB > 145:
     logging.error("Error: BSF_MIN_ATTENUATION_DB too high. Max. = 145 dB")
     exit(cf.f_lineno)
 elif BSF_MIN_ATTENUATION_DB > 0:
-    logging.info("Applying the band-stop-filter to the input signal will worsen concealing in frequency domain,\n\
+    logging.info("Applying the band-stop-filter to the input signal will worsen concealment in frequency domain,\n\
             thus increasing vulnerability against steganalysis. Apply this option only as a last measure.")
 BSF_LEFT_MARGIN = 400 # 600
 BSF_RIGHT_MARGIN = 400 # 600
