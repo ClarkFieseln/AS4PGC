@@ -1,5 +1,6 @@
 import pathlib
 from setuptools import setup
+import sys
 
 if sys.version_info < (3,6):
     print("as4pgc requires Python 3.6 or higher please upgrade")
