@@ -39,9 +39,9 @@ Use the option -h for more information:
 Configuration settings can be adapted in config.ini.
 For detailed documentation check the Article in Code Project. The link is provided further below.
 
-## GitHub Project
+## PyPi Project
 
-https://github.com/ClarkFieseln/as4pgc
+https://pypi.org/project/as4pgc/
 
 ## Article in Code Project
 
