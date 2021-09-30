@@ -47,6 +47,10 @@ https://pypi.org/project/as4pgc/
 
 https://www.codeproject.com/Articles/5313626/Audio-Steganography-for-Pretty-Good-Concealing-AS4
 
+## Article in GitHub
+
+https://github.com/ClarkFieseln/AS4PGC
+
 ## License
 
 (c) 2021 Clark Fieseln
