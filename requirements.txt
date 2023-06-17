@@ -1,4 +1,4 @@
-numpy==1.21
+numpy==1.22.0
 scipy==1.5.4
 dataclasses==0.6
 bitarray==1.6.1
