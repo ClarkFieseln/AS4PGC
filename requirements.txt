@@ -1,5 +1,5 @@
 numpy==1.22.0
-scipy==1.5.4
+scipy==1.10.0
 dataclasses==0.6
 bitarray==1.6.1
 simpleaudio==1.0.4
