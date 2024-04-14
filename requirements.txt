@@ -4,6 +4,6 @@ dataclasses==0.6
 bitarray==1.6.1
 simpleaudio==1.0.4
 SoundFile==0.10.3.post1
-cryptography==41.0.6
+cryptography==42.0.4
 tinytag==1.5.0
 matplotlib==3.3.3
