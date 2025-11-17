@@ -4,27 +4,27 @@
     ~~~~~~~~~
 
     This module contains functions for hiding and recovering files
-    using compressed audio files of types supported by ffmpeg (e.g. mp3, flac, ogg) but also uncompressed .wav is supported.
+    using compressed audio files of formats supported by ffmpeg (e.g. mp3, flac, ogg) and also uncompressed .wav format.
 
-    :copyright: (c) 2021 by Clark Fieseln.
-    :license: MIT License, see LICENSE.md for more details.
+    :copyright: (c) 2026 by Clark Fieseln.
+    :license: MIT License, see LICENSE for more details.
 """
 
 """
     Notes
     ~~~~~
     Warning! Hiding files inside "big audio files" may take several minutes.
-             Formats tested so far: MP3, FLAC, OGG, WAV
+             Formats tested so far: MP3, FLAC, OPUS, OGG, WAV
     #####################################################################################
-    The target of this steganographic technique is hiding information in compressed audio files instead of using the classical
-    LSB-steganography on .WAV files. But also uncompressed .WAV files may be used as carrier.
+    The target of this steganographic technique is to hide information in compressed audio files instead of using the classical
+    LSB-steganography in .WAV files. Nevertheless, also uncompressed .WAV files may be used as carrier with this method.
     This results in a lower capacity, but an audio format is used, which is much more wide spread and therefore less
     suspicious.
     The main reason it is not possible to directly manipulate "single" samples as in .WAV format 
     is because of changes resulting from conversion e.g. in .MP3 format which distort signal manipulations.
-    Modifications on single bits of the samples are just too small to survive audio compression reliably.
+    Modifications on single bits of the samples are sometimes too small to survive audio compression reliably.
     Instead, the audio signal is partitioned in small chunks and then the FFT of each chunk is calculated.
-    The FFT-series obtained as a result, is manipulated by increasing or decreasing the amplitude of the FFT at specific
+    The FFT-series obtained as a result is manipulated by increasing or decreasing the amplitude of the FFT at specific
     coding-frequencies.
     Coding is done on alternating chunks, using unmodified chunks as reference points.
     A linear interpolation between these reference points determines the threshold between ones and zeros.
@@ -84,7 +84,7 @@ from sys import exit
 #       if we import it from setup.py the help shows "strange default parameters"...
 # import setup
 # from setup import __version__
-__version__ = "1.1.6"
+__version__ = "1.1.7"
 
 # current frame
 ###############
@@ -111,7 +111,7 @@ LEVEL_OF_COMPRESSION = 9
 #################
 parser = argparse.ArgumentParser(prog='as4pgc',
                                  usage='%(prog)s -w <message_file> <carrier_file> [options]\n       or\n       %(prog)s -r <stego_file> [options]',
-                                 description='Hide message_file (e.g. type txt or zip) inside carrier_file (e.g. type mp3, ogg, flac, wav)\nor\nExtract message_file from stego_file.')
+                                 description='Hide message_file (e.g. type txt or zip) inside carrier_file (e.g. type mp3, ogg, flac, opus, wav)\nor\nExtract message_file from stego_file.')
 group = parser.add_mutually_exclusive_group()
 group.add_argument('-w', "--write", action='store', type=str, nargs=2, help='<path and name of file with secret message (any type)> <path and name of file used as a carrier to embed \
                     the secret message file (mono or stereo)>', metavar='')
@@ -163,7 +163,7 @@ elif not isinstance(args.read, type(None)):
 # For example, if the severity level is INFO, the logger will handle only INFO, WARNING, ERROR, and CRITICAL messages and will ignore DEBUG messages.
 DO_LOG = args.verbose
 if args.verbose == False:
-    # set DO_LOG to true anyways...logging level will be set to ERROR in this case
+    # set DO_LOG to true anyway...logging level will be set to ERROR in this case
     DO_LOG = True
 if not isinstance(args.verbose_level, type(None)):
     LOGGING_LEVEL = args.verbose_level
@@ -188,7 +188,7 @@ elif LOGGING_LEVEL == "logging.CRITICAL":
     logging_level = logging.CRITICAL
 
 if args.verbose == False:
-    # we activate it anyways with default logging.ERROR but, in this case we dont want to make it
+    # we activate it anyway with default logging.ERROR but, in this case we don't want to make it
     # look like a log, so we remove the timestamp
     logging.basicConfig(format='%(message)s', datefmt='%H:%M:%S', level=logging_level)
 else:
@@ -201,6 +201,13 @@ logging.info("DO_LOG = " + str(DO_LOG))
 logging.info("LOGGING_LEVEL = " + str(LOGGING_LEVEL))
 
 
+# scrumble FCs with offset
+##########################
+# TODO: add DO_OFFSET to Configuration and adapt code if required, e.g. to not unnecessarily use empty offsets
+# Note: when adding random offset to FCs we see a nice randomly distributed pattern in frequency domain with lower amplitudes (-3dB)
+#       which makes it more difficult for the attacker to see or decode the message.
+#       But using offsets may take up to 30% more iterations to complete (or even diverge and fail?)
+DO_OFFSET = True
 
 # module variable containing
 #     - hardcoded default configuration
@@ -215,11 +222,12 @@ class Configuration:
     MAX_VOLUME: float
     SEED_IGNORE: int
     SEED_IGNORE_CODE_DECEPTION: int
-    SEED_THRESHOLD: int # TODO: implement code using this..
+    SEED_THRESHOLD: int # TODO: implement code using this parameter...
     IGNORE_THRESHOLD: float
     DO_IGNORE_SOME: bool
     DO_DECEPTION: bool
     BSF_MIN_ATTENUATION_DB: int
+    Q_FACTOR: float
     SKIP_CODING_IF_MIN_EXCEEDED_DEFAULT: float
     SKIP_CODING_IF_MAX_EXCEEDED_DEFAULT: float
     INTERLEAVED_CHUNKS: int
@@ -248,26 +256,27 @@ class Configuration:
 configuration = Configuration(
     # basic configuration:
     ######################
-    480, # 960, # 480,  # CHUNK_LEN_SAMPLES
+    480, # 240, # 960, # 480,  # CHUNK_LEN_SAMPLES
     0.75, # MAX_VOLUME
     77, # SEED_IGNORE
     78, # SEED_IGNORE_CODE_DECEPTION
     79, # SEED_THRESHOLD
-    0.99, # IGNORE_THRESHOLD - 0.99 will result in approx. 1% of bits being NOT coded
+    0.99, # IGNORE_THRESHOLD - 0.99 will result in approx. 1% of bits NOT being coded
     True, # DO_IGNORE_SOME
     True, # DO_DECEPTION
-    85, # BSF_MIN_ATTENUATION_DB
-    0.0083, # SKIP_CODING_IF_MIN_EXCEEDED_DEFAULT - depends on NORMALIZE_SETTINGS
+    30, # BSF_MIN_ATTENUATION_DB
+    0.25, # Q_FACTOR
+    0.025, # 0.0166, # 0.0083, # SKIP_CODING_IF_MIN_EXCEEDED_DEFAULT - depends on NORMALIZE_SETTINGS
     9999.9, # 0.1000, # SKIP_CODING_IF_MAX_EXCEEDED_DEFAULT - depends on NORMALIZE_SETTINGS
     2, # INTERLEAVED_CHUNKS
-    2, # INTERLEAVED_FC
+    1, # INTERLEAVED_FC
     48000,  # SAMPLING_FREQUENCY
     True,  # NORMALIZE_SETTINGS
-    250,  # MAX_NR_OF_ITERATIONS
+    1000,  # MAX_NR_OF_ITERATIONS
     # advanced configuration:
     #########################
-    120, # 240, # 120, # CODE_FREQUENCY_START_BIN
-    179, # 239 # 359 # 399, # 199, # CODE_FREQUENCY_END_BIN
+    120, # 240, # 60, # 120, # CODE_FREQUENCY_START_BIN
+    167, # 183, # 89, # 179, # 239 # 359 # 399, # 199, # CODE_FREQUENCY_END_BIN
     True, # CHECK_IMAG_TOO
     False, # KEEP_TEMP_FILES
     320000, # BITRATE
@@ -277,8 +286,8 @@ configuration = Configuration(
     True, # CODE_WITH_MAGNITUDE
     1.15, # RECODE_FACTOR_PLUS
     70.0, # CODE_FACTOR_PERCENT
-    40.0, # CODE_FACTOR_PERCENT_DETECTION_THRESHOLD
-    "4.4-full_build-www.gyan.dev") # FFMPEG_VERSION
+    50.0, # 40.0, # CODE_FACTOR_PERCENT_DETECTION_THRESHOLD
+    "4.4.2-0ubuntu0.22.04.1") # FFMPEG_VERSION
 
 # configparser
 ##############
@@ -333,6 +342,9 @@ if os.path.isfile(config_filename):
             if "BSF_MIN_ATTENUATION_DB" in config["myConfig"]:
                 configuration.BSF_MIN_ATTENUATION_DB = int(config['myConfig']['BSF_MIN_ATTENUATION_DB'])
                 logging.info("        configuration.BSF_MIN_ATTENUATION_DB = " + configuration.BSF_MIN_ATTENUATION_DB.__str__())
+            if "Q_FACTOR" in config["myConfig"]:
+                configuration.Q_FACTOR = float(config['myConfig']['Q_FACTOR'])
+                logging.info("        configuration.Q_FACTOR = " + configuration.Q_FACTOR.__str__())
             if "SKIP_CODING_IF_MIN_EXCEEDED_DEFAULT" in config["myConfig"]:
                 configuration.SKIP_CODING_IF_MIN_EXCEEDED_DEFAULT = float(config['myConfig']['SKIP_CODING_IF_MIN_EXCEEDED_DEFAULT'])
                 logging.info("        configuration.SKIP_CODING_IF_MIN_EXCEEDED_DEFAULT = " + configuration.SKIP_CODING_IF_MIN_EXCEEDED_DEFAULT.__str__())
@@ -451,7 +463,7 @@ logging.info("FFMPEG_VERSION = "+FFMPEG_VERSION+"(used only for plausibility che
 
 # ffmpeg formats
 ################
-FFMPEG_FORMATS = " wav , mp3 , ogg , flac "
+FFMPEG_FORMATS = " wav , mp3 , ogg , flac , opus "
 # TODO: find out why we see the output of the ffmpeg -version command and hide it..
 '''
 command = "ffmpeg -formats"
@@ -467,7 +479,7 @@ logging.info("FFMPEG_FORMATS = "+FFMPEG_FORMATS)
 # '''
 
 # mess-up config?
-# NOTE: if no pwd is provided but -m was passed
+# Note: if no pwd is provided but -m was passed
 #       then we use empty pwd as password.
 ###############################################
 MESS_UP_CONFIG = args.messupconfig
@@ -500,7 +512,7 @@ while (True):
         fernet = Fernet(KEY_FROM_PASSWORD)
         # derive new seeds from key
         # use first and second part of key to generate 2 different integers
-        # NOTE: with this, correct decoding does NOT only depend on config.ini but also on password
+        # Note: with this, correct decoding does NOT only depend on config.ini but also on password
         ###########################################################################################
         if PASSWORD != "":
             configuration.SEED_IGNORE = int.from_bytes(KEY_FROM_PASSWORD[:len(KEY_FROM_PASSWORD)//2], byteorder='little', signed=False)
@@ -550,6 +562,7 @@ if MESS_UP_CONFIG == True:
     ##### DO_IGNORE_SOME: bool
     ##### DO_DECEPTION: bool
     ##### BSF_MIN_ATTENUATION_DB: int
+    ##### Q_FACTOR: float
     ##### SKIP_CODING_IF_MIN_EXCEEDED_DEFAULT: float
     ##### SKIP_CODING_IF_MAX_EXCEEDED_DEFAULT: float
     ##### INTERLEAVED_CHUNKS: int
@@ -573,7 +586,7 @@ if MESS_UP_CONFIG == True:
     #### INTERPOLATE_AND_DUMMY_CODE_ALL: bool
     #### AVG_INTERPOLATION: bool                     #### good candidate to mess-up
     #### INTERPOLATE_WITH_MEAN: bool                 #### good candidate to mess-up
-    #### CODE_WITH_MAGNITUDE: bool                     ## could mess-up this as well
+    #### CODE_WITH_MAGNITUDE: bool                     ## could mess up this as well
     #### RECODE_FACTOR_PLUS: float
     #### CODE_FACTOR_PERCENT: float
     #### CODE_FACTOR_PERCENT_DETECTION_THRESHOLD: float
@@ -596,6 +609,7 @@ if not os.path.isfile(config_filename):
     config['myConfig']['DO_IGNORE_SOME'] = str(configuration.DO_IGNORE_SOME)
     config['myConfig']['DO_DECEPTION'] = str(configuration.DO_DECEPTION)
     config['myConfig']['BSF_MIN_ATTENUATION_DB'] = str(configuration.BSF_MIN_ATTENUATION_DB)
+    config['myConfig']['Q_FACTOR'] = str(configuration.Q_FACTOR)
     config['myConfig']['SKIP_CODING_IF_MIN_EXCEEDED_DEFAULT'] = str(configuration.SKIP_CODING_IF_MIN_EXCEEDED_DEFAULT)
     config['myConfig']['SKIP_CODING_IF_MAX_EXCEEDED_DEFAULT'] = str(configuration.SKIP_CODING_IF_MAX_EXCEEDED_DEFAULT)
     config['myConfig']['INTERLEAVED_CHUNKS'] = str(configuration.INTERLEAVED_CHUNKS)
@@ -630,7 +644,7 @@ if not os.path.isfile(config_filename):
     else:
         logging.info("No config.ini, we use default values.")
         # TODO: uncomment next code-block to always force creation...
-        #       for now we dont want to have this file if not really required, this shall keep things simpler.
+        #       for now we don't want to have this file if not really required, this shall keep things simpler.
         '''
         # create default config file
         with open(config_filename, 'w') as configfile:
@@ -663,14 +677,19 @@ if WRITE:
     FILE_TYPE = str.lower(carrier_file[carrier_file.rfind("."):])
 else:
     FILE_TYPE = str.lower(stego_file[stego_file.rfind("."):])
-if " "+FILE_TYPE[1:]+" " not in FFMPEG_FORMATS: # if FILE_TYPE != ".mp3" and FILE_TYPE != ".flac":
+if " "+FILE_TYPE[1:]+" " not in FFMPEG_FORMATS:
     print("Error: carrier file type not supported. ffmpeg -formats:")
     print(FFMPEG_FORMATS)
     exit(cf.f_lineno)
 else:
     # TODO: extend list according to tests..
-    if FILE_TYPE[1:] != "mp3" and FILE_TYPE[1:] != "ogg" and FILE_TYPE[1:] != "flac" and FILE_TYPE[1:] != "wav":
+    if FILE_TYPE[1:] != "mp3" and FILE_TYPE[1:] != "ogg" and FILE_TYPE[1:] != "flac" and FILE_TYPE[1:] != "opus" and FILE_TYPE[1:] != "wav":
         print("Warning: file type " + FILE_TYPE[1:] + " not yet tested!")
+
+# check bitrate if .opus format used
+if FILE_TYPE == ".opus" and configuration.BITRATE != 256000:
+    configuration.BITRATE = 256000
+    print("Warning: file type .opus supports max. 256kB, bitrate changed to that value!")
 
 if WRITE:
     CARRIER_FILE_NAME = carrier_file
@@ -688,7 +707,7 @@ if WRITE:
     logging.info("OUT_FILE_NAME = " + OUT_FILE_NAME)
     # COMPRESSION may be set to True later if it really brings a reduction in msg length
     COMPRESSION = False
-    # NOTE: if no pwd is provided and option -n was NOT used
+    # Note: if no pwd is provided and option -n was NOT used
     #       then we use the empty pwd as password.
     ########################################################
     if not isinstance(args.no_encryption, type(None)):
@@ -699,7 +718,7 @@ if WRITE:
     index_of_last_slash = CARRIER_FILE_NAME.rfind('/')
     index_of_last_point = CARRIER_FILE_NAME.rfind('.')
     FILE_NAME = OUT_DIR_NAME + CARRIER_FILE_NAME[index_of_last_slash+1:index_of_last_point]
-    # Note: dont use any path...the path will be given when reading,
+    # Note: don't use any path...the path will be given when reading,
     #       then we use the same path as the path of the input file.
     ################################################################
     index_of_last_slash = MESSAGE_FILE_NAME.rfind('/')
@@ -728,13 +747,13 @@ else:
 MAX_NR_OF_ITERATIONS = configuration.MAX_NR_OF_ITERATIONS
 logging.info("MAX_NR_OF_ITERATIONS = " + str(MAX_NR_OF_ITERATIONS))
 #############
-# NOTE: SCALING audio signal to MAX_VOLUME may be used before "normalizing" signals in order to always use similar
+# Note: SCALING audio signal to MAX_VOLUME may be used before "normalizing" signals in order to always use similar
 #       configuration settings. High values of MAX_VOLUME are especially useful in signals with low level,
 #       which otherwise hide less bits.
-# WARNING: scaling, as well as other signal manipulations such as adding noise, a tone, or saturation will affect
-#       the result irreversibly. Note: adding noise reduces correlation between chunks, this is not good.
+# Warning: scaling, as well as other signal manipulations such as adding noise, a tone, or saturation will affect
+#       the result irreversibly. Note also, dding noise reduces correlation between chunks which is not good.
 #       *** DO NOT SCALE if you intend to UNSCALE after coding...that will destroy coding ***
-################################################################################################
+##################################################################################################################
 SCALE_INPUT = True
 logging.info("SCALE_INPUT = " + str(SCALE_INPUT))
 ###############################################
@@ -743,7 +762,7 @@ logging.info("SCALE_INPUT = " + str(SCALE_INPUT))
 # Note: adding noise is irreversible, and it may affect correlations between consecutive chunks which reduces coding capacity.
 #       when NOISE_LEVEL = 0.001, noise max value is 1000 times smaller than max. (with max 32768 we code up to 32 approx, which is 5 bits)
 #       when NOISE_LEVEL = 0.0001, noise max value is 10000 times smaller than max. (with max 32768 we code up to 3.2 approx, which is 2 bits)
-#       NOISE_LEVEL = 0.0 means noise is NOT added
+#       NOISE_LEVEL = 0.0 means that NO noise is added
 LEVEL_ADDED_NOISE = 0.0 # 0.01 # 0.001 # 0.0001
 ###############################################
 KEEP_TEMP_FILES = configuration.KEEP_TEMP_FILES
@@ -766,10 +785,13 @@ BITS_PER_SAMPLE = 8*BYTES_PER_SAMPLE
 MAX_AMPLITUDE = 2**(BITS_PER_SAMPLE-1)
 BITRATE = configuration.BITRATE
 BITRATE_STR = str(BITRATE)
+BITRATE_STR_SOX = str(int(BITRATE/1000))
 # 32-bit floating reduces digitizing errors but is probably not supported by other tools
 # flt not supported by .flac
 SAMPLE_FORMAT = "s16" # "flt"  # "s16" # "dbl"
 WAV_SAMPLE_FORMAT = "pcm_f32le"  # "pcm_s16le"
+WAV_SAMPLE_FORMAT_SOX_ENCODING = "float"
+WAV_SAMPLE_FORMAT_SOX_BIT_DEPTH = "32"
 CHUNK_LEN_SAMPLES = configuration.CHUNK_LEN_SAMPLES
 # Note: MAX_VOLUME is applied when SCALE_INPUT = True (see comments there)
 #       MAX_VOLUME shall probably not exceed 0.9 so there is still room for tolerances, coding, etc.
@@ -778,7 +800,7 @@ if MAX_VOLUME > 1.0:
     print("Error: MAX_VOLUME > 1.0")
     exit(cf.f_lineno)
 # Note: INTERLEAVED_CHUNKS, required for chunk-interpolation, may also help "spreading" the message across
-#       the carrier (in time domain) in order to keep statistics and be robust against steganalysis.
+#       the carrier (in time domain) in order to keep statistics and be more robust against steganalysis.
 INTERLEAVED_CHUNKS = configuration.INTERLEAVED_CHUNKS
 if INTERLEAVED_CHUNKS < 2:
     print("Error: INTERLEAVED_CHUNKS < 2")
@@ -880,18 +902,25 @@ logging.info("NR_OF_CODE_FREQUENCIES = " + str(NR_OF_CODE_FREQUENCIES))
 #     (*) interp
 #
 RECODE_FACTOR_PLUS = configuration.RECODE_FACTOR_PLUS
+# factor to force a high deviation beyond coding limits in order to skip
+SKIP_FACTOR = 2.0 # 5.0 # 3.0
+###########################
+# Note: for low amplitude values, it is possible that MIN coding may result in exceeding the lower threshold
+#       of the frequency components or not surviving audio compression, thus an increase of RECODE_FACTOR_MINUS
+#       may be more appropriate than a decrease, however not over CODE_FACTOR_PERCENT_DETECTION_THRESHOLD
 RECODE_FACTOR_MINUS = RECODE_FACTOR_PLUS
+###########################
 CODE_FACTOR_PERCENT = configuration.CODE_FACTOR_PERCENT
 # Note: values below CODE_FACTOR_PERCENT_DETECTION_THRESHOLD will be SKIPPED.
 CODE_FACTOR_PERCENT_DETECTION_THRESHOLD = configuration.CODE_FACTOR_PERCENT_DETECTION_THRESHOLD
 if CODE_FACTOR_PERCENT_DETECTION_THRESHOLD >= CODE_FACTOR_PERCENT:
-    logging.info("Configuration ERROR: CODE_FACTOR_PERCENT_DETECTION_THRESHOLD >= CODE_FACTOR_PERCENT. We will skip all coded bits!")
+    logging.info("Configuration Error: CODE_FACTOR_PERCENT_DETECTION_THRESHOLD >= CODE_FACTOR_PERCENT. We will skip all coded bits!")
     exit(cf.f_lineno)
 if CODE_FACTOR_PERCENT > 100:
-    logging.info("Configuration ERROR: CODE_FACTOR_PERCENT shall not exceed 100, otherwise lower delta cannot be coded!")
+    logging.info("Configuration Error: CODE_FACTOR_PERCENT shall not exceed 100, otherwise lower delta cannot be coded!")
     exit(cf.f_lineno)
 elif CODE_FACTOR_PERCENT == 0:
-    logging.info("Configuration WARNING: with CODE_FACTOR_PERCENT == 0 coding will actually remove frequencies completely or double them, depending on ONE, ZERO value!")
+    logging.info("Configuration Warning: with CODE_FACTOR_PERCENT == 0 coding will actually remove frequencies completely or double them, depending on ONE, ZERO value!")
 CODE_FACTOR_PERCENT_PLUS_DEFAULT = (100.0 + CODE_FACTOR_PERCENT) / 100.0
 CODE_FACTOR_PERCENT_MINUS_DEFAULT = (100.0 - CODE_FACTOR_PERCENT) / 100.0
 logging.info("RECODE_FACTOR_PLUS = "+str(RECODE_FACTOR_PLUS))
@@ -908,23 +937,29 @@ INTERPOLATION_FACTOR_PERCENT_MINUS = (100.0 - INTERPOLATION_FACTOR_PERCENT) / 10
 logging.info("INTERPOLATION_FACTOR_PERCENT = "+str(INTERPOLATION_FACTOR_PERCENT))
 logging.info("INTERPOLATION_FACTOR_PERCENT_MINUS = "+str(INTERPOLATION_FACTOR_PERCENT_MINUS))
 ##################
-# NOTE: used to restore CODE_FACTOR_PERCENT_PLUS and CODE_FACTOR_PERCENT_MINUS after use in recode
+# Note: used to restore CODE_FACTOR_PERCENT_PLUS and CODE_FACTOR_PERCENT_MINUS after use in recode
 CODE_FACTOR_PERCENT_PLUS_OLD = CODE_FACTOR_PERCENT_PLUS_DEFAULT
 CODE_FACTOR_PERCENT_MINUS_OLD = CODE_FACTOR_PERCENT_MINUS_DEFAULT
 
 # settings "band stop filter" to not interfere coding frequency when writing
 ############################################################################
-# settings "elliptic filter"
-# set BSF_MIN_ATTENUATION_DB = 0 to deactivate band stop filter
+# settings "low pass filter with SOX"
+# set Q_FACTOR = 0 to deactivate low pass filter with SOX
+Q_FACTOR = configuration.Q_FACTOR
+if Q_FACTOR > 10:
+    logging.error("Error: Q_FACTOR too high. Max. = 10.0")
+    exit(cf.f_lineno)
+elif Q_FACTOR > 0:
+    logging.info("Applying the low-pass-filter with SOX to the input signal.")
 BSF_MIN_ATTENUATION_DB = configuration.BSF_MIN_ATTENUATION_DB
 if BSF_MIN_ATTENUATION_DB > 145:
     logging.error("Error: BSF_MIN_ATTENUATION_DB too high. Max. = 145 dB")
     exit(cf.f_lineno)
 elif BSF_MIN_ATTENUATION_DB > 0:
-    logging.info("Applying the band-stop-filter to the input signal will worsen concealment in frequency domain,\n\
-            thus increasing vulnerability against steganalysis. Apply this option only as a last measure.")
-BSF_LEFT_MARGIN = 400 # 600
-BSF_RIGHT_MARGIN = 400 # 600
+    logging.info("Applying attenuation to the coding-part of the input signal that will worsen concealment in frequency domain,\n\
+            but will allow coding of frequencies.")
+BSF_LEFT_MARGIN = 2000 # 400 # 600
+BSF_RIGHT_MARGIN = 2000 # 400 # 600
 BSF_ORDER = 7
 BSF_MAX_RIPPLE = 0.1
 BSF_F1 = CODE_FREQUENCY_START - BSF_LEFT_MARGIN
@@ -940,7 +975,7 @@ header_as_string = ""
 
 # IMPORTANT: use SystemRandom() which uses os.urandom() internally to provide
 #            "secure" random numbers while still calling functions in random module (which is insecure).
-# NOTE: results are no longer "reproducible", i.e. they are different in each run.
+# Note: results are no longer "reproducible", i.e. they are different in each run.
 ########################################################################################################
 system_random = random.SystemRandom()
 system_random.seed(SEED_IGNORE_CODE_DECEPTION)
@@ -1103,15 +1138,21 @@ def write():
             logging.warning("Warning: no mono input file! Output will be converted to mono.")
             command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + FILE_TYPE + " -vn -acodec " + WAV_SAMPLE_FORMAT + " -ac 2 -ar " + str(
                 SAMPLING_FREQUENCY) + " -f wav " + FILE_NAME + "_temp.wav"
+            # with SOX:
+            # command = "sox... # TODO: add
         else:
             command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + FILE_TYPE + " -vn -acodec " + WAV_SAMPLE_FORMAT + " -ac 1 -ar " + str(
                 SAMPLING_FREQUENCY) + " -f wav " + FILE_NAME + ".wav"
+            # with SOX:
+            # command = "sox --no-show-progress " + FILE_NAME + FILE_TYPE + " -e " + WAV_SAMPLE_FORMAT_SOX_ENCODING + " -b " + WAV_SAMPLE_FORMAT_SOX_BIT_DEPTH + " -c 1 -r " + str(
+                # SAMPLING_FREQUENCY) + " " + FILE_NAME + ".wav"
         p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
         out, err = p1.communicate()
         if p1.returncode == 0:
             pass
         else:
             logging.error("Error: could not run ffmpeg!")
+            # logging.error("Error: could not run sox!")
             exit(cf.f_lineno)
         p1.terminate()
         p1.kill()
@@ -1123,12 +1164,15 @@ def write():
     ################
     if tag_channels == 2:
         command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_temp.wav -map_channel 0.0.0 " + FILE_NAME + ".wav"
+        # with SOX:
+        # command = "sox --no-show-progress " + FILE_NAME + "_temp.wav " + FILE_NAME + ".wav remix 1"
         p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
         out, err = p1.communicate()
         if p1.returncode == 0:
             pass
         else:
             logging.error("Error: could not run ffmpeg!")
+            # logging.error("Error: could not run sox!")
             exit(cf.f_lineno)
         p1.terminate()
         p1.kill()
@@ -1139,10 +1183,80 @@ def write():
             os.remove(FILE_NAME+"_temp.wav")
             logging.info("Deleted " + FILE_NAME + "_temp.wav")
 
+    # sharp LPF input (to get voice/music range)
+    ############################################
+    # Note: the -G flag adjusts gain automatically if clipping would occur,
+    #       though this flag may not always work
+    # command = "sox -G " + FILE_NAME + ".wav " + FILE_NAME + "_sharp_lpf.wav sinc " + "-" + str(BSF_F1)
+    command = "sox " + FILE_NAME + ".wav " + FILE_NAME + "_sharp_lpf.wav sinc " + "-" + str(BSF_F1)
+    p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
+    out, err = p1.communicate()
+    if p1.returncode == 0:
+        pass
+    else:
+        logging.error("Error: could not filter using sox!")
+        exit(cf.f_lineno)
+    p1.terminate()
+    p1.kill()
+    logging.info("Applied a sharp low-pass filter on mono .wav input signal using sox to generate _sharp_lpf.wav, cut-freq. = " + str(BSF_F1))
+
+    # sharp HPF and normalization of input (to get coding-range)
+    ############################################################
+    # Note: norm -0.1 avoids clipping when normalizing
+    # command = "sox -G " + FILE_NAME + ".wav " + FILE_NAME + "_sharp_hpf_norm.wav sinc " + str(BSF_F1) + " norm -0.1"
+    command = "sox " + FILE_NAME + ".wav " + FILE_NAME + "_sharp_hpf_norm.wav sinc " + str(BSF_F1) + " norm -0.1"
+    p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
+    out, err = p1.communicate()
+    if p1.returncode == 0:
+        pass
+    else:
+        logging.error("Error: could not filter using sox!")
+        exit(cf.f_lineno)
+    p1.terminate()
+    p1.kill()
+    logging.info("Applied a sharp high-pass filter and then normalized on mono .wav input signal using sox to generate _sharp_hpf_norm.wav, cut-freq. = " + str(BSF_F1))
+
+    # smooth LPF and gain reduced of HPF-signal (conding range part)
+    ################################################################
+    # Note:
+    #       norm -0.1 avoids clipping when normalizing
+    #       gain -l limits the signal from clipping while applying gain
+    # command = "sox -G " + FILE_NAME + "_sharp_hpf_norm.wav " + FILE_NAME + "_sharp_hpf_norm_red.wav lowpass -2 " + str(BSF_F1) + " " + str(Q_FACTOR) + "q norm -0.1 gain -l -" + str(BSF_MIN_ATTENUATION_DB)
+    command = "sox " + FILE_NAME + "_sharp_hpf_norm.wav " + FILE_NAME + "_sharp_hpf_norm_red.wav lowpass -2 " + str(
+        BSF_F1) + " " + str(Q_FACTOR) + "q norm -0.1 gain -" + str(BSF_MIN_ATTENUATION_DB)
+        # Warning: flag -l after gain makes coding MORE DIFFICULT: BSF_F1) + " " + str(Q_FACTOR) + "q norm -0.1 gain -l -" + str(BSF_MIN_ATTENUATION_DB)
+    p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
+    out, err = p1.communicate()
+    if p1.returncode == 0:
+        pass
+    else:
+        logging.error("Error: could not filter using sox!")
+        exit(cf.f_lineno)
+    p1.terminate()
+    p1.kill()
+    logging.info("Applied a smooth low-pass filter to reduce coding-range on _sharp_hpf_norm.wav input signal using sox to generate _sharp_hpf_norm_red.wav, cut-freq. = " + str(BSF_F1) + " q = " + str(Q_FACTOR))
+
+    # mix processed voice/music part and coding part and then normalize
+    ###################################################################
+    # Note: the -G flag adjusts gain automatically if clipping would occur,
+    #       though this flag may not always work
+    # command = "sox -G -m " + FILE_NAME + "_sharp_lpf.wav " + FILE_NAME + "_sharp_hpf_norm_red.wav " + FILE_NAME + "_sum.wav gain -n" # norm -0.1"
+    command = "sox -m " + FILE_NAME + "_sharp_lpf.wav " + FILE_NAME + "_sharp_hpf_norm_red.wav " + FILE_NAME + "_sum.wav gain -n"  # norm -0.1"
+    p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
+    out, err = p1.communicate()
+    if p1.returncode == 0:
+        pass
+    else:
+        logging.error("Error: could not filter using sox!")
+        exit(cf.f_lineno)
+    p1.terminate()
+    p1.kill()
+    logging.info("Mixed sharp_lpf.wav with _sharp_hpf_norm_red.wav and normalized using sox")
+
     # read sig <- .wav
     ##################
-    sig3, samplerate = sf.read(FILE_NAME + ".wav")
-    logging.info("Read " + FILE_NAME + ".wav as sig3")
+    sig3, samplerate = sf.read(FILE_NAME + "_sum.wav")
+    logging.info("Read " + FILE_NAME + "_sum.wav as sig3")
     logging.info("Nr. of samples of sig3 = " + str(len(sig3)))
 
     # add noise?
@@ -1157,19 +1271,6 @@ def write():
             sig3 = sig3 - (1-sig3_max)
         sig3 = sig3 + noise
         logging.info("Added noise with amplitude "+str(LEVEL_ADDED_NOISE))
-
-    # apply band-stop filter?
-    #########################
-    if BSF_MIN_ATTENUATION_DB > 0:
-        sos_bandstop = signal.ellip(BSF_ORDER, BSF_MAX_RIPPLE, BSF_MIN_ATTENUATION_DB,
-                                         # Note: we need to divide by Nyquist frequency or pass fs as argument...one thing or the other..
-                                         # [BPF_F1 / audioSettings.NYQUIST_FREQUENCY, BPF_F2 / audioSettings.NYQUIST_FREQUENCY],'bandstop', analog=False, output='sos')
-                                         [BSF_F1, BSF_F2], 'bandstop', analog=False,
-                                         fs=SAMPLING_FREQUENCY, output='sos')
-        # IMPORTANT: we need this TRICK to filter audio signal "in chunks" if required:
-        zBandStop = np.zeros((sos_bandstop.shape[0], 2))
-        sig3[:], zBandStop = signal.sosfilt(sos_bandstop, sig3[:], zi=zBandStop)
-        logging.info("Applied band-stop filter on input signal, fstart = " + str(BSF_F1) + ", fstop = "+str(BSF_F2))
 
     # scale signal and normalize settings
     #####################################
@@ -1231,7 +1332,7 @@ def write():
         logging.info(">> Plotted FFT of sig3")
 
     # NR_OF_CODE_FREQUENCIES_TO_CODE used for coding, for decoding NR_OF_CODE_FREQUENCIES is used.
-    # NR_OF_CODE_FREQUENCIES_TO_CODE may be reduced if higher fc not codeable.
+    # NR_OF_CODE_FREQUENCIES_TO_CODE may be reduced if higher fc not codable.
     ##############################################################################################
     NR_OF_CODE_FREQUENCIES_TO_CODE = NR_OF_CODE_FREQUENCIES
     NR_OF_CHUNKS = int(len(sig3) / CHUNK_LEN_SAMPLES)
@@ -1249,6 +1350,20 @@ def write():
         if i % (INTERLEAVED_CHUNKS * 5) == 0:
             random_f_shift[i] = FFT_BIN_WIDTH_HZ / 2.0
 
+    # fc_offset
+    # Shuffle coding frequencies a little bit by randomly adding a fix offset.
+    # This reduces coding visibility in frequency domain!
+    ##########################################################################
+    fc_offset = bitarray(int(NR_OF_CHUNKS)*NR_OF_CODE_FREQUENCIES)
+    # TODO: check random thing again,
+    #       too much randomness?
+    #       why dependency with SEED_IGNORE_CODE_DECEPTION ?
+    # workaround:
+    if DO_OFFSET:
+        random.seed(SEED_IGNORE_CODE_DECEPTION+7) # random.seed(SEED_F_SHUFFLE)
+        for i in range(len(fc_offset)):
+            fc_offset[i] = random.randint(0, 1)
+
     # fill FFT-series
     #################
     MAX_NR_OF_CODED_CHUNKS = int(NR_OF_CHUNKS / INTERLEAVED_CHUNKS)
@@ -1260,19 +1375,30 @@ def write():
     code_sig3_chunk_FFT_n_mod = np.array([np.zeros(NR_OF_CODE_FREQUENCIES,dtype=complex)] * NR_OF_CHUNKS)
     for i in range(NR_OF_CHUNKS):
         code_sig3_part = sig3[i * CHUNK_LEN_SAMPLES:i * CHUNK_LEN_SAMPLES + CHUNK_LEN_SAMPLES]
-        # Shift signal's frequency components by using the Hilbert transform to perform SSB modulation.
+        # Shift signal's frequency components using the Hilbert's transform to perform SSB modulation.
         code_sig3_part_shifted = freq_shift(code_sig3_part, random_f_shift[i], T)
-        code_sig3_chunk_FFT[i] = rfft(code_sig3_part_shifted)
+        code_sig3_chunk_FFT[i] = rfft(code_sig3_part_shifted) # .astype(np.complex128)
         for fcode in range(NR_OF_CODE_FREQUENCIES):
             code_sig3_chunk_FFT_n[i][fcode] = code_sig3_chunk_FFT[i][fcode+CODE_FREQUENCY_START_BIN]
             code_sig3_chunk_FFT_n_mod[i][fcode] = code_sig3_chunk_FFT[i][fcode+CODE_FREQUENCY_START_BIN]
+
+    # plot FFT of chunk
+    ###################
+    if PLOT_FFT == True:
+        for i in range(NR_OF_CHUNKS):
+            if i%2 == 0:
+                plt.figure(65)
+                plt.title("real FFT of shifted code_sig3_part found in code_sig3_chunk_FFT["+ str(i) + "]")
+                plt.plot(code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN:CODE_FREQUENCY_END_BIN])
+                plt.grid()
+        plt.show()
 
     # plot FFT-series
     #################
     if PLOT_FFT == True:
         plt.figure(3)
         plt.title("sig3-FFT-series Real part of code frequencies")
-        if CODE_WITH_MAGNITUDE == True:
+        if CODE_WITH_MAGNITUDE:
             plt.plot(np.abs(code_sig3_chunk_FFT_n[:, :]))
         else:
             plt.plot(np.real(code_sig3_chunk_FFT_n[:,:]))
@@ -1289,12 +1415,12 @@ def write():
 
     # check size of message
     LEN_ENCR_MSG_BITS = (LEN_MSG_BYTES*8//64)*64 + 64
-    if(LEN_ENCR_MSG_BITS > MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES):
+    if LEN_ENCR_MSG_BITS > MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES:
         logging.error("Error: message too large! msg_len_bits = "+str(LEN_ENCR_MSG_BITS)+", MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES = "+\
                       str(MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES))
         logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select \
         a different/bigger carrier file or reduce your messaage, e.g. split it.")
-        if DO_PLOT == True:
+        if DO_PLOT:
             input("Press Enter to exit...")
         exit(cf.f_lineno)
     else:
@@ -1306,21 +1432,8 @@ def write():
     # TODO: improve this, dont need to create such a long array
     deception = bitarray(int(NR_OF_CHUNKS)*NR_OF_CODE_FREQUENCIES)
     system_random.seed(SEED_IGNORE_CODE_DECEPTION)
-    for i in range(len(deception)):
-        deception[i] = system_random.randint(0, 1)
-
-    # fc_offset
-    # Shuffle coding frequencies a little bit by randomly adding a fix offset.
-    # This reduces coding visibility in frequency domain!
-    ##########################################################################
-    fc_offset = bitarray(int(NR_OF_CHUNKS)*NR_OF_CODE_FREQUENCIES)
-    # TODO: check random "thingy" again,
-    #       too much randomness?
-    #       why dependency with SEED_IGNORE_CODE_DECEPTION ?
-    # workaround:
-    random.seed(SEED_IGNORE_CODE_DECEPTION+7) # random.seed(SEED_F_SHUFFLE)
-    for i in range(len(fc_offset)):
-        fc_offset[i] = random.randint(0, 1)
+    for i55 in range(len(deception)):
+        deception[i55] = system_random.randint(0, 1)
 
     # fill message with random bits
     # bits beyond message will be used as padding for deception
@@ -1339,10 +1452,10 @@ def write():
     ignore.setall(False)
     if DO_IGNORE_SOME:
         random.seed(SEED_IGNORE)
-        for i in range(len(ignore)):
+        for i66 in range(len(ignore)):
             # random values beyond threshold will be marked to be ignored
             if random.random() > IGNORE_THRESHOLD:
-                ignore[i] = 1
+                ignore[i66] = 1
 
     recode = bitarray(int(NR_OF_CHUNKS)*NR_OF_CODE_FREQUENCIES)
     # Note: initialize to zero, otherwise values may contain ones
@@ -1375,8 +1488,8 @@ def write():
     ###########################################################
     ###########################################################
     for curr_iteration in range(1, MAX_NR_OF_ITERATIONS + 1):
-        # help variables to shorten loops
-        #################################
+        # helper variables to shorten loops
+        ###################################
         if INTERPOLATE_AND_DUMMY_CODE_ALL == False:
             i_max = NR_OF_CHUNKS
             fc_max = NR_OF_CODE_FREQUENCIES
@@ -1391,7 +1504,7 @@ def write():
         logging.info("total_skip = "+str(total_skip))
         logging.info("total_ignore_and_skip = " + str(total_ignore_and_skip))
         remaining_nr_of_coding_bits = MAX_NR_OF_CODED_CHUNKS*MAX_NR_OF_CODE_FREQUENCIES - total_ignore_and_skip
-        if (LEN_ENCR_MSG_BITS > remaining_nr_of_coding_bits):
+        if LEN_ENCR_MSG_BITS > remaining_nr_of_coding_bits:
             logging.error("Error: message too large! msg_len_bits = " + str(LEN_ENCR_MSG_BITS) + ", remaining_nr_of_coding_bits = " + \
                           str(remaining_nr_of_coding_bits)+" found in iteration "+str(curr_iteration))
             logging.error("       If close to complete, you may try a different password or configuration or just try again. Otherwise you need to select \
@@ -1402,9 +1515,9 @@ def write():
                          str(remaining_nr_of_coding_bits)+" in iteration "+str(curr_iteration))
 
         # DO_LAST ?
-        # use "if DO_LAST == Fasle:" so we dont CODE again in case we already obtained a good CODE without errors
+        # use "if DO_LAST == False:" so we don't CODE again in case we already obtained a good CODE without errors
         # or use "if True:" to code again just to show the corresponding plots in the last iteration
-        ############################################################################################
+        ##########################################################################################################
         if True: # DO_LAST == False:
             # reset counter
             nrOfBitsCodedInMsg = 0
@@ -1414,7 +1527,7 @@ def write():
 
             # loop CHUNKS
             #############
-            for i in range(INTERLEAVED_CHUNKS, NR_OF_CHUNKS - 1):
+            for i in range(0, NR_OF_CHUNKS - 1):
                 # leave loop?
                 if leave_loops == True:
                     break
@@ -1432,30 +1545,30 @@ def write():
 
                         # leave code loops?
                         ###################
-                        if INTERPOLATE_AND_DUMMY_CODE_ALL == False and (nrOfBitsCodedInMsg > LEN_ENCR_MSG_BITS):
-                            # dont need to code anything else, real message already coded and
-                            # dont want to code dummies
+                        if (INTERPOLATE_AND_DUMMY_CODE_ALL == False) and (nrOfBitsCodedInMsg > LEN_ENCR_MSG_BITS):
+                            # don't need to code anything else, real message already coded and
+                            # don't want to code dummies
                             ###########################
                             i_max = i
                             fc_max = fc
                             leave_loops = True
                             break
 
-                        # code magnitude or only .real part?
-                        ####################################
-                        if CODE_WITH_MAGNITUDE == True:
-                            if AVG_INTERPOLATION == True:
+                        # code magnitude
+                        ################
+                        if CODE_WITH_MAGNITUDE:
+                            if AVG_INTERPOLATION:
                                 plus = np.array([code_sig3_chunk_FFT[i + 1][fc + CODE_FREQUENCY_START_BIN],
                                                  code_sig3_chunk_FFT[i + 1][fc - 1 + CODE_FREQUENCY_START_BIN],
                                                  code_sig3_chunk_FFT[i + 1][fc + 1 + CODE_FREQUENCY_START_BIN]])
-                                if INTERPOLATE_WITH_MEAN == True:
+                                if INTERPOLATE_WITH_MEAN:
                                     avg_plus = np.mean(plus)
                                 else:
                                     avg_plus = np.median(plus)
                                 minus = np.array([code_sig3_chunk_FFT[i - 1][fc + CODE_FREQUENCY_START_BIN],
                                                   code_sig3_chunk_FFT[i - 1][fc - 1 + CODE_FREQUENCY_START_BIN],
                                                   code_sig3_chunk_FFT[i - 1][fc + 1 + CODE_FREQUENCY_START_BIN]])
-                                if INTERPOLATE_WITH_MEAN == True:
+                                if INTERPOLATE_WITH_MEAN:
                                     avg_minus = np.mean(minus)
                                 else:
                                     avg_minus = np.median(minus)
@@ -1508,7 +1621,7 @@ def write():
 
                             # code magnitude or only .real part?
                             ####################################
-                            if CODE_WITH_MAGNITUDE == True:
+                            if CODE_WITH_MAGNITUDE:
                                 check_real = SKIP_CODING_IF_MIN_EXCEEDED < abs(interpolatedFFTn_real * INTERPOLATION_FACTOR_PERCENT_MINUS) and \
                                              abs(interpolatedFFTn_real * INTERPOLATION_FACTOR_PERCENT_PLUS) < SKIP_CODING_IF_MAX_EXCEEDED
                                 # also check on imaginary part?
@@ -1536,13 +1649,13 @@ def write():
                                 if check:
                                     DO_CODE = True
                                 else:
-                                    if CODE_WITH_MAGNITUDE == True:
+                                    if CODE_WITH_MAGNITUDE:
                                         logging.debug("SKIP interpolation real point(" + str(i) + ") = " + str(interpolatedFFTn_real) + "due to EXCEEDED RElATIVE CODING_DELTA for fc = "+str(fc))
                                         logging.debug("SKIP interpolation imag point(" + str(i) + ") = " + str(interpolatedFFTn_imag) + "due to EXCEEDED RElATIVE CODING_DELTA for fc = " + str(fc))
                                     else:
                                         logging.debug("SKIP interpolation point(" + str(i) + ") = " + str(interpolatedFFTn) + "due to EXCEEDED RElATIVE CODING_DELTA for fc = "+str(fc))
                             else:
-                                if CODE_WITH_MAGNITUDE == True:
+                                if CODE_WITH_MAGNITUDE:
                                     logging.debug("SKIP interpolation real point(" + str(i) + ") = " + str(interpolatedFFTn_real) + "due to SKIP set in previous readback..for fc = "+str(fc))
                                     logging.debug("SKIP interpolation imag point(" + str(i) + ") = " + str(interpolatedFFTn_imag) + "due to SKIP set in previous readback..for fc = " + str(fc))
                                 else:
@@ -1555,7 +1668,8 @@ def write():
                                 ###############
                                 if recode[i + fc * NR_OF_CHUNKS] == True:
                                     CODE_FACTOR_PERCENT_PLUS = CODE_FACTOR_PERCENT_PLUS*RECODE_FACTOR_PLUS
-                                    CODE_FACTOR_PERCENT_MINUS = CODE_FACTOR_PERCENT_MINUS*RECODE_FACTOR_MINUS
+                                    # 10% of threshold value, below detection threshold
+                                    CODE_FACTOR_PERCENT_MINUS = ((configuration.CODE_FACTOR_PERCENT_DETECTION_THRESHOLD * 0.9)/100.0)
 
                                 # CODE ONE?
                                 ###########
@@ -1586,30 +1700,28 @@ def write():
                             #####################################
                             else:
                                 # brute-force skip PLUS?
-                                # note: multiplying with (CODE_FACTOR_PERCENT_PLUS*3) does NOT REVERT the sign, i.e. it remains on the same side (above or below zero)
+                                # Note: multiplying with (CODE_FACTOR_PERCENT_PLUS*3) does NOT REVERT the sign, i.e. it remains on the same side (above or below zero)
                                 ######################################################################################################################################
                                 if skipForcePlus[i + fc*NR_OF_CHUNKS] == True:
-                                    if CODE_WITH_MAGNITUDE == True:
-                                        code_sig3_chunk_FFT[i][
-                                            CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real * (
-                                                    CODE_FACTOR_PERCENT_PLUS * 2.0) + 1j * interpolatedFFTn_imag * (CODE_FACTOR_PERCENT_PLUS * 2.0)
+                                    if CODE_WITH_MAGNITUDE:
+                                        code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real * (
+                                                    CODE_FACTOR_PERCENT_PLUS * SKIP_FACTOR) + 1j * interpolatedFFTn_imag * (CODE_FACTOR_PERCENT_PLUS * SKIP_FACTOR)
                                     else:
-                                        code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn * (CODE_FACTOR_PERCENT_PLUS*2.0) + 1j * 0.0
+                                        code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn * (CODE_FACTOR_PERCENT_PLUS*SKIP_FACTOR) + 1j * 0.0
                                 # brute-force skip MINUS? - last chance!
                                 ########################################
                                 elif skipForceMinus[i + fc*NR_OF_CHUNKS] == True:
-                                    if CODE_WITH_MAGNITUDE == True:
-                                        code_sig3_chunk_FFT[i][
-                                            CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real * (
-                                                    CODE_FACTOR_PERCENT_MINUS * 2.0) + 1j * interpolatedFFTn_imag * (CODE_FACTOR_PERCENT_MINUS * 2.0)
+                                    if CODE_WITH_MAGNITUDE:
+                                        code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real * (
+                                                    CODE_FACTOR_PERCENT_MINUS / SKIP_FACTOR) + 1j * interpolatedFFTn_imag * (CODE_FACTOR_PERCENT_MINUS / SKIP_FACTOR)
                                     else:
-                                        code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn * (CODE_FACTOR_PERCENT_MINUS*2.0) + 1j * 0.0
+                                        code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn * (CODE_FACTOR_PERCENT_MINUS/SKIP_FACTOR) + 1j * 0.0
                                 # just linearize and skip?
                                 ##########################
                                 elif (INTERPOLATE_AND_DUMMY_CODE_ALL == True) or (nrOfBitsCodedInMsg < LEN_ENCR_MSG_BITS):
                                     # LINEAR INTERPOLATION of interleaved samples of FFT-series
                                     ###########################################################
-                                    if CODE_WITH_MAGNITUDE == True:
+                                    if CODE_WITH_MAGNITUDE:
                                         code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real + 1j * interpolatedFFTn_imag
                                     else:
                                         code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn + 1j * 0.0
@@ -1619,17 +1731,17 @@ def write():
                         # ignore bit
                         ############
                         else:
-                            if DO_DECEPTION == True:
-                                # we ignore bit but code it anyways for deception of attacker
-                                #############################################################
+                            if DO_DECEPTION:
+                                # we ignore bit but code it anyway for deception of attacker
+                                ############################################################
                                 r = deception[i + fc*NR_OF_CHUNKS] # same deception with every iteration
                                 if r == 1:
-                                    if CODE_WITH_MAGNITUDE == True:
+                                    if CODE_WITH_MAGNITUDE:
                                         code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real * CODE_FACTOR_PERCENT_MINUS + 1j * interpolatedFFTn_imag * CODE_FACTOR_PERCENT_MINUS
                                     else:
                                         code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn * CODE_FACTOR_PERCENT_MINUS + 1j * 0.0
                                 else:
-                                    if CODE_WITH_MAGNITUDE == True:
+                                    if CODE_WITH_MAGNITUDE:
                                         code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn_real * CODE_FACTOR_PERCENT_PLUS + 1j * interpolatedFFTn_imag * CODE_FACTOR_PERCENT_PLUS
                                     else:
                                         code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc] = interpolatedFFTn * CODE_FACTOR_PERCENT_PLUS + 1j * 0.0
@@ -1644,10 +1756,8 @@ def write():
                         code_sig3_chunk_FFT_n_mod[i][fc] = code_sig3_chunk_FFT[i][CODE_FREQUENCY_START_BIN + fc]
                         sig3_recovered_part = irfft(code_sig3_chunk_FFT[i], n=CHUNK_LEN_SAMPLES)
                         # unshift
-                        if i % (INTERLEAVED_CHUNKS * 5) == 0:
-                            sig3_recovered_part = freq_shift(sig3_recovered_part, -random_f_shift[i], T)
-
-                        sig3_recovered_mod[i * CHUNK_LEN_SAMPLES:i * CHUNK_LEN_SAMPLES + CHUNK_LEN_SAMPLES] = sig3_recovered_part
+                        sig3_recovered_part_shifted = freq_shift(sig3_recovered_part, -random_f_shift[i], T)
+                        sig3_recovered_mod[i * CHUNK_LEN_SAMPLES:i * CHUNK_LEN_SAMPLES + CHUNK_LEN_SAMPLES] = sig3_recovered_part_shifted
 
             # message written
             #################
@@ -1664,7 +1774,7 @@ def write():
             # Error of coding
             #################
             err3_recovered_mod = sig3_recovered_mod - sig3
-            if CODE_WITH_MAGNITUDE == True:
+            if CODE_WITH_MAGNITUDE:
                 err_sig3_chunk_FFT_n_mod = np.abs(code_sig3_chunk_FFT_n_mod) - np.abs(code_sig3_chunk_FFT_n)
             else:
                 err_sig3_chunk_FFT_n_mod = np.real(code_sig3_chunk_FFT_n_mod) - np.real(code_sig3_chunk_FFT_n)
@@ -1698,7 +1808,7 @@ def write():
             if DO_LAST and PLOT_FFT == True:
                 plt.figure(6)
                 plt.title("code_sig3_chunk_FFT_n, code_sig3_chunk_FFT_n_mod and err_sig3_chunk_FFT_n_mod")
-                if CODE_WITH_MAGNITUDE == True:
+                if CODE_WITH_MAGNITUDE:
                     plt.plot(np.abs(code_sig3_chunk_FFT_n[:,:]))
                     plt.plot(np.abs(code_sig3_chunk_FFT_n_mod[:,:]))
                 else:
@@ -1737,7 +1847,7 @@ def write():
 
         # store audio (buffered signal) as _mod.wav (contains at least:
         # rounding errors due to formatting: error approx. 1bit (0.003%).
-        # lineariation errors (biggest errors!): XXX bit
+        # linearization errors (biggest errors!): XXX bit
         # coding errors: XXX bit
         #################################################################
         wf.write(FILE_NAME + "_mod.wav", SAMPLING_FREQUENCY, audio3_recovered_mod)
@@ -1753,16 +1863,24 @@ def write():
             # command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ab " + BITRATE_STR + " -sample_fmt "+SAMPLE_FORMAT+" -metadata comment='comment' " + FILE_NAME + "_out"+ FILE_TYPE
             if FILE_TYPE == ".ogg":
                 command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -aq 10 -metadata comment='comment' " + FILE_NAME + "_out" + FILE_TYPE
+                # with SOX
+                # command = "sox... # TODO: add
             elif FILE_TYPE == ".amr":
                 command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ar 8000 -metadata comment='comment' " + FILE_NAME + "_out" + FILE_TYPE
+                # with SOX
+                # command = "sox... # TODO: add
             else:
                 command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_mod.wav -ab " + BITRATE_STR + " -metadata comment='comment' " + FILE_NAME + "_out" + FILE_TYPE
+                # with SOX:
+                # Note: sox cannot add comments in metadata
+                # command = "sox --no-show-progress " + FILE_NAME + "_mod.wav -C " + BITRATE_STR_SOX + " " + FILE_NAME + "_out" + FILE_TYPE
             p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
             out, err = p1.communicate()
             if p1.returncode == 0:
                 pass
             else:
                 logging.error("Error: could not run ffmpeg!")
+                # logging.error("Error: could not run sox!")
                 exit(cf.f_lineno)
             p1.terminate()
             p1.kill()
@@ -1771,13 +1889,16 @@ def write():
             # convert _out + FILE_TYPE to _out.wav to make it readable by code (readback)
             #############################################################################
             command = "ffmpeg -loglevel quiet -y -i " + FILE_NAME + "_out" + FILE_TYPE + " -vn -acodec "+WAV_SAMPLE_FORMAT+" -ac 1 -ar " + str(
-            SAMPLING_FREQUENCY) + " -f wav " + FILE_NAME + "_out.wav"
+                SAMPLING_FREQUENCY) + " -f wav " + FILE_NAME + "_out.wav"
+            # with SOX:
+            # command = "sox --no-show-progress " + FILE_NAME + "_out" + FILE_TYPE + " -c 1 -r " + str(SAMPLING_FREQUENCY) + " -e " + WAV_SAMPLE_FORMAT_SOX_ENCODING + " -b " + WAV_SAMPLE_FORMAT_SOX_BIT_DEPTH + " " + FILE_NAME + "_out.wav"
             p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
             out, err = p1.communicate()
             if p1.returncode == 0:
                 pass
             else:
                 logging.error("Error: could not run ffmpeg!")
+                # logging.error("Error: could not run sox!")
                 exit(cf.f_lineno)
             p1.terminate()
             p1.kill()
@@ -1797,17 +1918,17 @@ def write():
         # copy _out + FILE_TYPE -> OUT_FILE_NAME
         # and delete temporary files
         ########################################
-        if DO_LAST == True:
-            # Note: if you dont want to copy metadata and permissions use instead:
+        if DO_LAST:
+            # Note: if you don't want to copy metadata and permissions use instead:
             #            copyfile(FILE_NAME+"_out+FILE_TYPE", OUT_FILE_NAME)
-            ##########################################################
+            #######################################################################
             if FILE_TYPE != ".wav":
                 copy2(FILE_NAME + "_out"+FILE_TYPE, OUT_FILE_NAME)
             else:
                 copy2(FILE_NAME + "_mod" + FILE_TYPE, OUT_FILE_NAME)
             # hide output file
             ##################
-            if HIDE == True:
+            if HIDE:
                 # TODO: correct Issue: [B607:start_process_with_partial_path]
                 # Issue: [B607:start_process_with_partial_path] Starting a process with a partial executable path
                 # Severity: Low   Confidence: High
@@ -1822,6 +1943,26 @@ def write():
                 if os.path.exists(FILE_NAME + ".wav"):
                     os.remove(FILE_NAME + ".wav")
                     logging.info("Deleted " + FILE_NAME + ".wav")
+                # del in_sharp_lpf.wav
+                ######################
+                if os.path.exists(FILE_NAME + "_sharp_lpf.wav"):
+                    os.remove(FILE_NAME + "_sharp_lpf.wav")
+                    logging.info("Deleted " + FILE_NAME + "_sharp_lpf.wav")
+                # del in_sharp_hpf_norm.wav
+                ###########################
+                if os.path.exists(FILE_NAME + "_sharp_hpf_norm.wav"):
+                    os.remove(FILE_NAME + "_sharp_hpf_norm.wav")
+                    logging.info("Deleted " + FILE_NAME + "_sharp_hpf_norm.wav")
+                # del in_sharp_hpf_norm_red.wav
+                ###############################
+                if os.path.exists(FILE_NAME + "_sharp_hpf_norm_red.wav"):
+                    os.remove(FILE_NAME + "_sharp_hpf_norm_red.wav")
+                    logging.info("Deleted " + FILE_NAME + "_sharp_hpf_norm_red.wav")
+                # del in_sum.wav
+                ################
+                if os.path.exists(FILE_NAME + "_sum.wav"):
+                    os.remove(FILE_NAME + "_sum.wav")
+                    logging.info("Deleted " + FILE_NAME + "_sum.wav")
                 # del in_mod.wav
                 ################
                 if os.path.exists(FILE_NAME + "_mod.wav"):
@@ -1840,7 +1981,7 @@ def write():
 
             # play audio3_recovered_mod (buffered signal)
             #############################################
-            if PLAY_ON == True:
+            if PLAY_ON:
                 logging.info("Playing stego file (= carrier + message)..")
                 # Start playback
                 play_obj = sa.play_buffer(audio3_recovered_mod, NUM_CHANNELS, BYTES_PER_SAMPLE, SAMPLING_FREQUENCY)
@@ -1857,7 +1998,7 @@ def write():
 
         # NORMALIZE Settings
         ####################
-        if NORMALIZE_SETTINGS == True:
+        if NORMALIZE_SETTINGS:
             sig4_max = max(abs(sig4))
             if sig4_max == 0:
                 logging.error("Error: sig4_max = 0")
@@ -1908,9 +2049,9 @@ def write():
         # random_f_shift2
         #################
         random_f_shift2 = np.zeros(NR_OF_CHUNKS)
-        for i in range(len(random_f_shift2)):
-            if i % (INTERLEAVED_CHUNKS * 5) == 0:
-                random_f_shift2[i] = FFT_BIN_WIDTH_HZ / 2.0
+        for i100 in range(len(random_f_shift2)):
+            if i100 % (INTERLEAVED_CHUNKS * 5) == 0:
+                random_f_shift2[i100] = FFT_BIN_WIDTH_HZ / 2.0
 
         # fill FFT-series
         #################
@@ -1918,6 +2059,7 @@ def write():
         code_sig4_chunk_FFT_n = np.array([np.zeros(NR_OF_CODE_FREQUENCIES, dtype=complex)] * NR_OF_CHUNKS)
         for i in range(NR_OF_CHUNKS):
             code_sig4_part = sig4[i * CHUNK_LEN_SAMPLES:i * CHUNK_LEN_SAMPLES + CHUNK_LEN_SAMPLES]
+            # Shift signal's frequency components using the Hilbert's transform to perform SSB modulation.
             code_sig4_part_shifted = freq_shift(code_sig4_part, random_f_shift2[i], T)
             code_sig4_chunk_FFT[i] = rfft(code_sig4_part_shifted)
             for fcode in range(NR_OF_CODE_FREQUENCIES):
@@ -1951,22 +2093,23 @@ def write():
         # fc_offset
         ###########
         fc_offset2 = bitarray(int(NR_OF_CHUNKS) * NR_OF_CODE_FREQUENCIES)
-        random.seed(SEED_IGNORE_CODE_DECEPTION + 7)
-        for i in range(len(fc_offset2)):
-            fc_offset2[i] = random.randint(0, 1)
+        if DO_OFFSET:
+            random.seed(SEED_IGNORE_CODE_DECEPTION + 7)
+            for i200 in range(len(fc_offset2)):
+                fc_offset2[i200] = random.randint(0, 1)
 
         # ignore bits in message
         # generate random bits AGAIN as if we read this file for the first time...
-        # NOTE: we need reproducible/repeatable random numbers, therefore we cannot use SystemRandom()
+        # Note: we need reproducible/repeatable random numbers, therefore we cannot use SystemRandom()
         #       random numbers are still secure because the seed is obtained from the password!
         #######################################################################################
         ignore2 = bitarray(int(NR_OF_CHUNKS)*NR_OF_CODE_FREQUENCIES)
         ignore2.setall(False)
         if DO_IGNORE_SOME:
             random.seed(SEED_IGNORE)
-            for i in range(len(ignore2)):
+            for i300 in range(len(ignore2)):
                 if random.random() > IGNORE_THRESHOLD:
-                    ignore2[i] = 1
+                    ignore2[i300] = 1
 
         # DECODE readback signal
         # (use as a reference "own" interpolated value) - previous signals/data are not supposed to be known
@@ -1980,7 +2123,7 @@ def write():
 
         # loop chunks
         #############
-        for i in range(INTERLEAVED_CHUNKS, NR_OF_CHUNKS - 1):
+        for i in range(0, NR_OF_CHUNKS - 1):
             # leave loop?
             if leave_loops == True:
                 break
@@ -2007,19 +2150,19 @@ def write():
                     if ignore2[i + fc*NR_OF_CHUNKS] == False:
                         # was message coded with magnitude or only .real part?
                         ######################################################
-                        if CODE_WITH_MAGNITUDE == True:
-                            if AVG_INTERPOLATION == True:
+                        if CODE_WITH_MAGNITUDE:
+                            if AVG_INTERPOLATION:
                                 plus = np.array([code_sig4_chunk_FFT[i + 1][fc + CODE_FREQUENCY_START_BIN],
                                                  code_sig4_chunk_FFT[i + 1][fc - 1 + CODE_FREQUENCY_START_BIN],
                                                  code_sig4_chunk_FFT[i + 1][fc + 1 + CODE_FREQUENCY_START_BIN]])
-                                if INTERPOLATE_WITH_MEAN == True:
+                                if INTERPOLATE_WITH_MEAN:
                                     avg_plus = np.mean(plus)
                                 else:
                                     avg_plus = np.median(plus)
                                 minus = np.array([code_sig4_chunk_FFT[i - 1][fc + CODE_FREQUENCY_START_BIN],
                                                   code_sig4_chunk_FFT[i - 1][fc - 1 + CODE_FREQUENCY_START_BIN],
                                                   code_sig4_chunk_FFT[i - 1][fc + 1 + CODE_FREQUENCY_START_BIN]])
-                                if INTERPOLATE_WITH_MEAN == True:
+                                if INTERPOLATE_WITH_MEAN:
                                     avg_minus = np.mean(minus)
                                 else:
                                     avg_minus = np.median(minus)
@@ -2035,18 +2178,18 @@ def write():
                         # only .real part coded
                         #######################
                         else:
-                            if AVG_INTERPOLATION == True:
+                            if AVG_INTERPOLATION:
                                 plus = np.array([code_sig4_chunk_FFT[i + 1][fc + CODE_FREQUENCY_START_BIN],
                                                  code_sig4_chunk_FFT[i + 1][fc - 1 + CODE_FREQUENCY_START_BIN],
                                                  code_sig4_chunk_FFT[i + 1][fc + 1 + CODE_FREQUENCY_START_BIN]])
-                                if INTERPOLATE_WITH_MEAN == True:
+                                if INTERPOLATE_WITH_MEAN:
                                     avg_plus = np.mean(plus)
                                 else:
                                     avg_plus = np.median(plus)
                                 minus = np.array([code_sig4_chunk_FFT[i - 1][fc + CODE_FREQUENCY_START_BIN],
                                                   code_sig4_chunk_FFT[i - 1][fc - 1 + CODE_FREQUENCY_START_BIN],
                                                   code_sig4_chunk_FFT[i - 1][fc + 1 + CODE_FREQUENCY_START_BIN]])
-                                if INTERPOLATE_WITH_MEAN == True:
+                                if INTERPOLATE_WITH_MEAN:
                                     avg_minus = np.mean(minus)
                                 else:
                                     avg_minus = np.median(minus)
@@ -2082,7 +2225,7 @@ def write():
                         if check:
                             check1_real = False
                             check1_imag = False
-                            if CODE_WITH_MAGNITUDE == True:
+                            if CODE_WITH_MAGNITUDE:
                                 check1_real = SKIP_CODING_IF_MIN_EXCEEDED < abs(code_sig4_chunk_FFT_n[i, fc].real) < SKIP_CODING_IF_MAX_EXCEEDED
                                 if CHECK_IMAG_TOO:
                                     check1_imag = SKIP_CODING_IF_MIN_EXCEEDED < abs(code_sig4_chunk_FFT_n[i, fc].imag) < SKIP_CODING_IF_MAX_EXCEEDED
@@ -2095,7 +2238,7 @@ def write():
                             ################################
                             if check1:
                                 check2_real = False
-                                if CODE_WITH_MAGNITUDE == True:
+                                if CODE_WITH_MAGNITUDE:
                                     diffFFT_n_relative_abs_real = abs(((code_sig4_chunk_FFT_n[i, fc].real - interpolatedFFTn_real) * 100) / interpolatedFFTn_real)
                                     check2_real = abs(
                                         CODE_FACTOR_PERCENT - CODE_FACTOR_PERCENT_DETECTION_THRESHOLD) < diffFFT_n_relative_abs_real < abs(
@@ -2165,7 +2308,7 @@ def write():
 
                                     # do actual decoding here
                                     #########################
-                                    if CODE_WITH_MAGNITUDE == True:
+                                    if CODE_WITH_MAGNITUDE:
                                         if interpolatedFFTn_real != 0.0:
                                             if check2_real == True:
                                                 err_sig4_chunk_FFT_percent[i][fc] = (code_sig4_chunk_FFT_n[i, fc].real - interpolatedFFTn_real) * 100.0 / interpolatedFFTn_real
@@ -2190,12 +2333,12 @@ def write():
                                     ###############
                                     else:
                                         recode[i + fc * NR_OF_CHUNKS] = False
-                                        # NOTE: err_sig4_chunk_FFT_percent[] will remain zero, this is checked further below i.o. checking for skip[] which is UNKNOWN when reading for the first time
+                                        # Note: err_sig4_chunk_FFT_percent[] will remain zero, this is checked further below i.o. checking for skip[] which is UNKNOWN when reading for the first time
                                         #       if RELATIVE threshold level for detection not reached, then mark chunk to be skipped next time...
                                         ##############################################################################################################################################################
                                         # and mark to skip
                                         skip[i + fc * NR_OF_CHUNKS] = True
-                                        if CODE_WITH_MAGNITUDE == True:
+                                        if CODE_WITH_MAGNITUDE:
                                             logging.debug("SKIP interpolation abs point(" + str(i) + ") = " + str(interpolatedFFTn_real) + "due to EXCEEDED RELATIVE CODING_DELTA for fc = "+str(fc))
                                         else:
                                             logging.debug("SKIP interpolation point(" + str(i) + ") = " + str(interpolatedFFTn) + "due to EXCEEDED RELATIVE CODING_DELTA for fc = "+str(fc))
@@ -2215,7 +2358,7 @@ def write():
                                     #######################################################################################
                                     # and mark to skip
                                     skip[i + fc * NR_OF_CHUNKS] = True
-                                    if CODE_WITH_MAGNITUDE == True:
+                                    if CODE_WITH_MAGNITUDE:
                                         logging.debug("SKIP interpolation abs point(" + str(i) + ") = " + str(interpolatedFFTn_real) + "due to EXCEEDED ABSOLUTE CODING_DELTA for fc = "+str(fc))
                                     else:
                                         logging.debug("SKIP interpolation point(" + str(i) + ") = " + str(interpolatedFFTn) + "due to EXCEEDED ABSOLUTE CODING_DELTA for fc = "+str(fc))
@@ -2235,7 +2378,7 @@ def write():
                                 ##############################################################################
                                 # and mark to skip
                                 skip[i + fc * NR_OF_CHUNKS] = True
-                                if CODE_WITH_MAGNITUDE == True:
+                                if CODE_WITH_MAGNITUDE:
                                     logging.debug("SKIP interpolation abs point(" + str(i) + ") = " + str(interpolatedFFTn_real) + "due to SKIP_CODING_IF_MAX/MIN_EXCEEDED for fc = " + str(fc))
                                 else:
                                     logging.debug("SKIP interpolation point(" + str(i) + ") = " + str(interpolatedFFTn) + "due to SKIP_CODING_IF_MAX/MIN_EXCEEDED for fc = "+str(fc))
@@ -2256,19 +2399,19 @@ def write():
 
         # loop coded/interleaved chunks
         ###############################
-        for i in range(1,int(NR_OF_CHUNKS/INTERLEAVED_CHUNKS)):
-            # NOTE: we dont get out in order to show PROGRESS on PLOT
-            #########################################################
+        for i in range(0, int(NR_OF_CHUNKS / INTERLEAVED_CHUNKS)):
+            # Note: we don't get out in order to show PROGRESS on PLOT
+            ##########################################################
             if False: # getOut == True:
                 break
             # loop coding frequencies
             #########################
             for fc in range(0 + fc_offset2[i*INTERLEAVED_CHUNKS]*(INTERLEAVED_FC//2), NR_OF_CODE_FREQUENCIES, INTERLEAVED_FC):
                 # Loop as long as message (encrypted org-msg) not yet decoded.
-                # NOTE: we coded bits beyond this lenght and they may even be incorrectly coded (above or below threshold),
-                #       but we dont care. That is good for "more deceiving" because they are coded in an incorrect way
-                #       but attackers dont know that, i.e. they dont know where the message really ends.
-                ########################################################################################
+                # Note: we coded bits beyond this lenght and they may even be incorrectly coded (above or below threshold),
+                #       but we don't care. That is good for "more deceiving" because they are coded in an incorrect way
+                #       but attackers don't know that, i.e. they don't know where the message really ends.
+                ##########################################################################################
                 if nrOfBitsDecodedInMsg < LEN_ENCR_MSG_BITS:
                     # ignore bit in msg?
                     ####################
@@ -2305,8 +2448,8 @@ def write():
                             if code_bitarray_read[nrOfBitsDecodedInMsg-1] != message[nrOfBitsDecodedInMsg-1]:
                                 nrOfMsgErr = nrOfMsgErr + 1
                                 logging.debug("Readback-Error on MSG_ORG["+str(nrOfBitsDecodedInMsg-1)+"] = "+str(message[nrOfBitsDecodedInMsg-1])+" for fc = "+str(fc))
-                                # NOTE - IMPORTANT: dont store this case in skip[] !
-                                # *** Here we lose synchronization, from now on many erros are actually NOT erros but result of unsynchronized bit-streams ***
+                                # Note - IMPORTANT: don't store this case in skip[] !
+                                # *** Here we lose synchronization, from now on many errors are actually NOT errors but result of unsynchronized bit-streams ***
                                 # We could actually mark the failed bit-coding setting skip[] to true but doing that increases the nr. of discarded
                                 # coded-chunks excessively. Instead, we just mark them when reading-back based on the plausibility checks on limits, etc.
                                 #########################################################################################################################
@@ -2317,16 +2460,16 @@ def write():
                         # this chunk was not in coding range
                         ####################################
                         else:
-                            # not strictly an error because not decoded, so we dont increment nrOfMsgErr
+                            # not strictly an error because not decoded, so we don't increment nrOfMsgErr
                             # if threshold level for detection not reached, then we could mark to skip next time,
-                            # but we dont actually need to do that.
-                            #######################################################################################
+                            # but we don't actually need to do that.
+                            #####################################################################################
                             logging.debug("Skipped decoding of bit at chunk position = "+str(i)+" for fc = "+str(fc))
                     # ignore bit
                     ############
                     else:
                         pass
-                        # dont need to log again..this was logged further above
+                        # don't need to log again...this was logged further above
                         # logging.debug("Ignore bit at position "+str(i + fc*NR_OF_CHUNKS))
                 # message was decoded!
                 # ...or we read up to LEN_ENCR_MSG_BITS without reaching yet the expected nrOfBitsDecodedInMsg
@@ -2337,7 +2480,7 @@ def write():
 
         # update progress bar and elapsed time
         ######################################
-        if DO_LAST == False:
+        if DO_LAST:
             # update only if decoded bits within message length
             if nrOfBitsDecodedInMsg <= LEN_ENCR_MSG_BITS:
                 # we subtract errors to show progress of bits which were "correctly" decoded
@@ -2405,14 +2548,10 @@ def write():
         if DO_PLOT:
             if curr_iteration == 1 or DO_LAST == True:
                 plt.figure(12)
-                plt.title("nr_bit_coded and _decoded for FCs")
-            ##############
-            plt.plot(nr_bit_coded_fc[:curr_iteration, 0], 'r', label="coded freq = " + str(fc))
-            plt.plot(nr_bit_decoded_fc[:curr_iteration, 0], 'c',label="decoded freq = " + str(fc))
-            for fc in range(INTERLEAVED_FC, NR_OF_CODE_FREQUENCIES, INTERLEAVED_FC):
+                plt.title("nr_bit_coded and _decoded for FCs (b=cod, g=dec)")
+            for fc in range(0, NR_OF_CODE_FREQUENCIES, INTERLEAVED_FC):
                 plt.plot(nr_bit_coded_fc[:curr_iteration, fc], 'b', label="coded freq = " + str(fc))
                 plt.plot(nr_bit_decoded_fc[:curr_iteration, fc], 'g', label="decoded freq = " + str(fc))
-            ##############
             plt.grid()
             plt.ion()
             # plt.legend()  # too many labels to plot
@@ -2440,6 +2579,7 @@ def write():
             nr_bit_coded[curr_iteration - 1] = nrOfBitsCodedInMsg
             nr_bit_decoded[curr_iteration - 1] = nrOfBitsDecodedInMsg
             # got an infinite loop?
+            # TODO: total_skip_old and nrOfBitsDecodedInMsg_old really not used?
             #######################
             if nrOfMsgErr == 0:
                 if total_skip_old == 0:
@@ -2451,7 +2591,7 @@ def write():
                     pass
                 else:
                     logging.error("Error: infinite loop detected!")
-                    if DO_PLOT == True:
+                    if DO_PLOT:
                         input("Press Enter to exit...")
                     exit(cf.f_lineno)
         elif DO_LAST == False:
@@ -2480,6 +2620,17 @@ def write():
             logging.info(">>> Original message decoded correctly in " + str(curr_iteration) + " iterations!")
             logging.info("psnrErr4 = " + str(psnrErr4))
             logging.info("snrErr4 = " + str(snrErr4))
+            # plot FFT of CODED chunk
+            #########################
+            if PLOT_FFT:
+                for i in range(NR_OF_CHUNKS):
+                    if i % 2 == 0:
+                        plt.figure(66)
+                        plt.title("real FFT of CODED shifted code_sig3_part found in code_sig4_chunk_FFT[" + str(i) + "]")
+                        plt.plot(code_sig4_chunk_FFT[i][CODE_FREQUENCY_START_BIN:CODE_FREQUENCY_END_BIN])
+                        plt.grid()
+                        plt.ion()
+                plt.show()
             # leave loop
             ############
             break # exit for loop "for curr_iteration"
@@ -2489,7 +2640,7 @@ def write():
 
     # plot nr_bit_decoded as a function of iterations
     ##############################################
-    if PLOT_BIT_ERR_IN_ITERATIONS == True:
+    if PLOT_BIT_ERR_IN_ITERATIONS:
         plt.figure(13)
         plt.title("nr_bit_coded and _decoded")
         plt.plot(nr_bit_coded)
@@ -2517,7 +2668,7 @@ def write():
     # but only if plots are visible,
     # this gives time to analyze them
     #################################
-    if DO_PLOT == True:
+    if DO_PLOT:
         input("Press Enter to exit...")
 
     # end of write() function
@@ -2578,6 +2729,8 @@ def read():
     if FILE_TYPE != ".wav":
         command = "ffmpeg -loglevel quiet -y -i " + stego_file + " -vn -acodec "+WAV_SAMPLE_FORMAT+" -ac 1 -ar " + str(
             tag.samplerate) + " -f wav " + stego_file + ".wav"
+        # with SOX:
+        # command = "sox... # TODO: add
         p1 = subprocess.Popen(shlex.split(command), shell=False, stdout=subprocess.PIPE)
         out, err = p1.communicate()
         if p1.returncode == 0:
@@ -2639,7 +2792,7 @@ def read():
     code_sig4_chunk_FFT_n = np.array([np.zeros(NR_OF_CODE_FREQUENCIES, dtype=complex)] * NR_OF_CHUNKS)
     for i in range(NR_OF_CHUNKS):
         code_sig4_part = sig4[i * CHUNK_LEN_SAMPLES:i * CHUNK_LEN_SAMPLES + CHUNK_LEN_SAMPLES]
-        # Frequency shift:
+        # Shift signal's frequency components using the Hilbert's transform to perform SSB modulation.
         code_sig4_part_shifted = freq_shift(code_sig4_part, random_f_shift2[i], T)
         code_sig4_chunk_FFT[i] = rfft(code_sig4_part_shifted)
         for fcode in range(NR_OF_CODE_FREQUENCIES):
@@ -2648,9 +2801,10 @@ def read():
     # fc_offset
     ###########
     fc_offset2 = bitarray(int(NR_OF_CHUNKS)*NR_OF_CODE_FREQUENCIES)
-    random.seed(SEED_IGNORE_CODE_DECEPTION+7)
-    for i in range(len(fc_offset2)):
-        fc_offset2[i] = random.randint(0, 1)
+    if DO_OFFSET:
+        random.seed(SEED_IGNORE_CODE_DECEPTION+7)
+        for i in range(len(fc_offset2)):
+            fc_offset2[i] = random.randint(0, 1)
 
     # bits to be ignored in "message"
     #################################
@@ -2674,7 +2828,7 @@ def read():
     err_sig4_chunk_FFT_percent = np.array([np.zeros(NR_OF_CODE_FREQUENCIES)] * NR_OF_CHUNKS)
     # loop chunks
     #############
-    for i in range(INTERLEAVED_CHUNKS, NR_OF_CHUNKS - 1):
+    for i in range(0, NR_OF_CHUNKS - 1):
         if i % INTERLEAVED_CHUNKS == 0:
             # loop coding frequencies
             #########################
@@ -2846,16 +3000,16 @@ def read():
 
     # loop coded/interleaved chunks
     ###############################
-    for i in range(1, int(NR_OF_CHUNKS / INTERLEAVED_CHUNKS)):
-        # Note: we dont get out in order to show PROGRESS on PLOT
-        #########################################################
+    for i in range(0, int(NR_OF_CHUNKS / INTERLEAVED_CHUNKS)):
+        # Note: we don't get out in order to show PROGRESS on PLOT
+        ##########################################################
         if False:  # getOut == True:
             break
         # loop coding frequencies
         #########################
         for fc in range(0 + fc_offset2[i*INTERLEAVED_CHUNKS]*(INTERLEAVED_FC//2), NR_OF_CODE_FREQUENCIES, INTERLEAVED_FC):
             # loop as long as message (encrypted org-msg) not yet completely decoded
-            # NOTE: we probably coded bits beyond this length and they may even be incorrectly coded (above or below threshold)
+            # Note: we probably coded bits beyond this length and they may even be incorrectly coded (above or below threshold)
             #       but we dont care. That may even be good for "more deceiving" because they are coded in an incorrect way
             #       but attackers dont know that.
             ###################################################################################################################
@@ -3113,5 +3267,3 @@ def freq_shift(x, f_shift, dt):
 #######################
 if __name__ == '__main__':
     main()
-
-
