@@ -3,7 +3,7 @@ from setuptools import setup
 import sys
 
 if sys.version_info < (3,6):
-    print("as4pgc requires Python 3.6 or higher please upgrade")
+    print("as4pgc requires Python 3.6 or higher, please upgrade")
     sys.exit(1)
 
 # The directory containing this file
@@ -12,7 +12,7 @@ HERE = pathlib.Path(__file__).parent
 # The text of the README file
 README = (HERE / "README.md").read_text()
 
-__version__ = "1.1.6"
+__version__ = "1.1.7"
 
 # This call to setup() does all the work
 setup(
@@ -31,6 +31,7 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Development Status :: 4 - Beta",
         "Environment :: Console",
         "Intended Audience :: End Users/Desktop",
@@ -53,5 +54,4 @@ setup(
     'Source': 'https://github.com/ClarkFieseln/as4pgc',
     },
 )
-
 
