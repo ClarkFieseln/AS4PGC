@@ -1,7 +1,7 @@
 # as4pgc
 Hide files inside audio files.
 
-Use "Audio Steganography for Pretty Good Concealing" to compress, encrypt, and hide small files of any type inside compressed audio files (e.g. MP3, FLAC, OGG) or inside uncompressed .WAV files.
+Use "Audio Steganography for Pretty Good Concealment" to compress, encrypt, and hide small files of any type inside compressed audio files (e.g. MP3, FLAC, OGG) or inside uncompressed .WAV files.
 
 ## Installation
 ```sh
@@ -24,6 +24,9 @@ Hide a file of any type inside an .mp3 file:
 Use option -p to activate plots and track signal processing steps.
 
 Use option -v to output details.
+```sh
+  as4pgc -p -v -w secret.zip carrier.mp3
+```
 
 Then recover the hidden file:
 ```sh
@@ -53,6 +56,6 @@ https://github.com/ClarkFieseln/AS4PGC
 
 ## License
 
-(c) 2021 Clark Fieseln
+(c) 2026 Clark Fieseln
 
 This repository is licensed under the MIT license. See LICENSE for details.
