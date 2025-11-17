@@ -10,7 +10,7 @@ print("Updating requirements.txt..")
 #       Issue: [B602:subprocess_popen_with_shell_equals_true] subprocess call with shell=True identified, security issue.
 #       Severity: High   Confidence: High
 #########################################
-p1 = subprocess.Popen(shlex.split("pipreqs --force ./ --ignore backups"), shell=False) # shell=True)
+p1 = subprocess.Popen(shlex.split("pipreqs --force ./ --ignore backups --mode compat"), shell=False) # shell=True)
 p1.wait()
 p1.terminate()
 p1.kill()
