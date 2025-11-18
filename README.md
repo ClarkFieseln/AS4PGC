@@ -12,6 +12,8 @@ Use "Audio Steganography for Pretty Good Concealment" to compress, encrypt, and 
   
   # in linux:
   sudo apt install ffmpeg
+  sudo apt install sox libsox-fmt-mp3
+  sudo apt install libsox-fmt-opus
 ```
 For Windows you can download ffmpeg from here:
 https://www.ffmpeg.org/
