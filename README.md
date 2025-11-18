@@ -7,7 +7,7 @@ Use "Audio Steganography for Pretty Good Concealment" to compress, encrypt, and 
 ```sh
   pip install as4pgc
   
-  # if necessary, use:
+  # install dependencies:
   pip install -r requirements.txt
   
   # in linux:
