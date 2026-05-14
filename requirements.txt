@@ -6,4 +6,4 @@ scipy~=1.16.3
 setuptools~=80.9.0
 simpleaudio~=1.0.4
 soundfile~=0.13.1
-tinytag~=2.1.2
+tinytag~=2.2.1
