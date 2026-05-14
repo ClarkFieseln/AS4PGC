@@ -90,7 +90,14 @@ __version__ = "1.1.7"
 ###############
 cf = currentframe()
 
-
+# TODO: create new configuraiton parameter
+#       and check what is the best value here
+EPS = 0.0
+# EPS = 1e-15
+# EPS = 1e-12
+# EPS = 1e-9
+# EPS = 1e-6
+# EPS = 1e-3
 
 # header
 ########
@@ -457,8 +464,6 @@ if p1.returncode == 0:
 else:
     logging.error("Error: could not get ffmpeg version!")
     exit(cf.f_lineno)
-p1.terminate()
-p1.kill()
 logging.info("FFMPEG_VERSION = "+FFMPEG_VERSION+"(used only for plausibility check)")
 
 # ffmpeg formats
@@ -473,8 +478,6 @@ FFMPEG_FORMATS = str(out)
 if p1.returncode != 0:
     logging.error("Error: could not get ffmpeg formats!")
     exit(cf.f_lineno)
-p1.terminate()
-p1.kill()
 logging.info("FFMPEG_FORMATS = "+FFMPEG_FORMATS)
 # '''
 
@@ -1154,8 +1157,6 @@ def write():
             logging.error("Error: could not run ffmpeg!")
             # logging.error("Error: could not run sox!")
             exit(cf.f_lineno)
-        p1.terminate()
-        p1.kill()
         logging.info("Converted " + FILE_NAME + FILE_TYPE + " to " + FILE_NAME + ".wav")
     elif tag_channels == 2:
         copy2(FILE_NAME + FILE_TYPE, FILE_NAME + "_temp" + FILE_TYPE)
@@ -1174,8 +1175,6 @@ def write():
             logging.error("Error: could not run ffmpeg!")
             # logging.error("Error: could not run sox!")
             exit(cf.f_lineno)
-        p1.terminate()
-        p1.kill()
         logging.info("Converted " + FILE_NAME + "_temp.wav stereo to " + FILE_NAME + ".wav mono")
         # del _temp.wav
         ###############
@@ -1196,8 +1195,6 @@ def write():
     else:
         logging.error("Error: could not filter using sox!")
         exit(cf.f_lineno)
-    p1.terminate()
-    p1.kill()
     logging.info("Applied a sharp low-pass filter on mono .wav input signal using sox to generate _sharp_lpf.wav, cut-freq. = " + str(BSF_F1))
 
     # sharp HPF and normalization of input (to get coding-range)
@@ -1212,8 +1209,6 @@ def write():
     else:
         logging.error("Error: could not filter using sox!")
         exit(cf.f_lineno)
-    p1.terminate()
-    p1.kill()
     logging.info("Applied a sharp high-pass filter and then normalized on mono .wav input signal using sox to generate _sharp_hpf_norm.wav, cut-freq. = " + str(BSF_F1))
 
     # smooth LPF and gain reduced of HPF-signal (conding range part)
@@ -1232,8 +1227,6 @@ def write():
     else:
         logging.error("Error: could not filter using sox!")
         exit(cf.f_lineno)
-    p1.terminate()
-    p1.kill()
     logging.info("Applied a smooth low-pass filter to reduce coding-range on _sharp_hpf_norm.wav input signal using sox to generate _sharp_hpf_norm_red.wav, cut-freq. = " + str(BSF_F1) + " q = " + str(Q_FACTOR))
 
     # mix processed voice/music part and coding part and then normalize
@@ -1249,8 +1242,6 @@ def write():
     else:
         logging.error("Error: could not filter using sox!")
         exit(cf.f_lineno)
-    p1.terminate()
-    p1.kill()
     logging.info("Mixed sharp_lpf.wav with _sharp_hpf_norm_red.wav and normalized using sox")
 
     # read sig <- .wav
@@ -1370,7 +1361,7 @@ def write():
     MAX_NR_OF_CODE_FREQUENCIES = int(NR_OF_CODE_FREQUENCIES_TO_CODE/INTERLEAVED_FC)
     logging.info("MAX_NR_OF_CODED_CHUNKS = "+str(MAX_NR_OF_CODED_CHUNKS))
     logging.info("MAX_NR_OF_CODE_FREQUENCIES = " + str(MAX_NR_OF_CODE_FREQUENCIES))
-    code_sig3_chunk_FFT = [np.zeros(CHUNK_LEN_SAMPLES//2,dtype=complex)]*NR_OF_CHUNKS
+    code_sig3_chunk_FFT = np.zeros((NR_OF_CHUNKS, CHUNK_LEN_SAMPLES // 2 + 1),dtype=np.complex64,)
     code_sig3_chunk_FFT_n = np.array([np.zeros(NR_OF_CODE_FREQUENCIES,dtype=complex)] * NR_OF_CHUNKS)
     code_sig3_chunk_FFT_n_mod = np.array([np.zeros(NR_OF_CODE_FREQUENCIES,dtype=complex)] * NR_OF_CHUNKS)
     for i in range(NR_OF_CHUNKS):
@@ -1700,7 +1691,7 @@ def write():
                             #####################################
                             else:
                                 # brute-force skip PLUS?
-                                # Note: multiplying with (CODE_FACTOR_PERCENT_PLUS*3) does NOT REVERT the sign, i.e. it remains on the same side (above or below zero)
+                                # Note: multiplying with (CODE_FACTOR_PERCENT_PLUS*2) does NOT REVERT the sign, i.e. it remains on the same side (above or below zero)
                                 ######################################################################################################################################
                                 if skipForcePlus[i + fc*NR_OF_CHUNKS] == True:
                                     if CODE_WITH_MAGNITUDE:
@@ -1882,8 +1873,6 @@ def write():
                 logging.error("Error: could not run ffmpeg!")
                 # logging.error("Error: could not run sox!")
                 exit(cf.f_lineno)
-            p1.terminate()
-            p1.kill()
             logging.info("Converted " + FILE_NAME + "_mod.wav to " + FILE_NAME + "_out"+FILE_TYPE)
 
             # convert _out + FILE_TYPE to _out.wav to make it readable by code (readback)
@@ -1900,8 +1889,6 @@ def write():
                 logging.error("Error: could not run ffmpeg!")
                 # logging.error("Error: could not run sox!")
                 exit(cf.f_lineno)
-            p1.terminate()
-            p1.kill()
             logging.info("Converted " + FILE_NAME + "_out" + FILE_TYPE + " to " + FILE_NAME + "_out.wav")
 
         # readback temporary stego file
@@ -2115,8 +2102,15 @@ def write():
         # (use as a reference "own" interpolated value) - previous signals/data are not supposed to be known
         # TODO: optimization: first decode only header-bits, then if header ok decode rest bits
         #######################################################################################
-        err_sig4_chunk_FFT_absolute = np.array([np.zeros(NR_OF_CODE_FREQUENCIES)] * NR_OF_CHUNKS)
-        err_sig4_chunk_FFT_percent = np.array([np.zeros(NR_OF_CODE_FREQUENCIES)] * NR_OF_CHUNKS)
+        err_sig4_chunk_FFT_absolute = np.zeros(
+            (NR_OF_CHUNKS, NR_OF_CODE_FREQUENCIES),
+            dtype=np.complex64,
+        )
+        err_sig4_chunk_FFT_percent = np.zeros(
+            (NR_OF_CHUNKS, NR_OF_CODE_FREQUENCIES),
+            dtype=np.complex64,
+        )
+
 
         # flag to leave loops
         leave_loops = False
@@ -2309,7 +2303,7 @@ def write():
                                     # do actual decoding here
                                     #########################
                                     if CODE_WITH_MAGNITUDE:
-                                        if interpolatedFFTn_real != 0.0:
+                                        if abs(interpolatedFFTn_real) > EPS:
                                             if check2_real == True:
                                                 err_sig4_chunk_FFT_percent[i][fc] = (code_sig4_chunk_FFT_n[i, fc].real - interpolatedFFTn_real) * 100.0 / interpolatedFFTn_real
                                             else:
@@ -2317,7 +2311,7 @@ def write():
                                         else:
                                             err_sig4_chunk_FFT_percent[i][fc] = 0.0
                                     else:
-                                        if interpolatedFFTn != 0.0:
+                                        if abs(interpolatedFFTn) > EPS:
                                             err_sig4_chunk_FFT_percent[i][fc] = (code_sig4_chunk_FFT_n[i,fc].real - interpolatedFFTn) * 100.0 / interpolatedFFTn
                                         else:
                                             err_sig4_chunk_FFT_percent[i][fc] = 0.0
@@ -2390,7 +2384,11 @@ def write():
         # check decoded BIT-STREAM
         ##########################
         code_bitarray_read = bitarray()
-        code_sig4_chunk_FFT_percent = np.array([np.zeros(NR_OF_CODE_FREQUENCIES)] * NR_OF_CHUNKS)
+        code_sig4_chunk_FFT_percent = np.zeros(
+            (NR_OF_CHUNKS, NR_OF_CODE_FREQUENCIES),
+            dtype=np.complex64,
+        )
+
         code_abs_gap4 = []
         nrOfBitsDecodedInMsg = 0
         nrOfMsgErr = 0
@@ -2738,8 +2736,6 @@ def read():
         else:
             logging.error("Error: could not run ffmpeg!")
             exit(cf.f_lineno)
-        p1.terminate()
-        p1.kill()
         logging.info("Converted " + stego_file + " to " + stego_file + ".wav")
     else:
         # we can read the file directly
@@ -2825,7 +2821,11 @@ def read():
     # DECODE stego signal
     # TODO: improvement: read only bits of header, after decoding header correctly read rest bits
     #############################################################################################
-    err_sig4_chunk_FFT_percent = np.array([np.zeros(NR_OF_CODE_FREQUENCIES)] * NR_OF_CHUNKS)
+    err_sig4_chunk_FFT_percent = np.zeros(
+        (NR_OF_CHUNKS, NR_OF_CODE_FREQUENCIES),
+        dtype=np.complex64,
+    )
+
     # loop chunks
     #############
     for i in range(0, NR_OF_CHUNKS - 1):
@@ -2963,7 +2963,7 @@ def read():
                                 # do actual decoding here
                                 #########################
                                 if CODE_WITH_MAGNITUDE == True:
-                                    if interpolatedFFTn_real != 0.0:
+                                    if abs(interpolatedFFTn_real) > EPS:
                                         if check2_real == True:
                                             err_sig4_chunk_FFT_percent[i][fc] = (code_sig4_chunk_FFT_n[i, fc].real - interpolatedFFTn_real) * 100.0 / interpolatedFFTn_real
                                         else:
@@ -2971,7 +2971,7 @@ def read():
                                     else:
                                         err_sig4_chunk_FFT_percent[i][fc] = 0.0
                                 else:
-                                    if interpolatedFFTn != 0.0:
+                                    if abs(interpolatedFFTn) > EPS:
                                         err_sig4_chunk_FFT_percent[i][fc] = (code_sig4_chunk_FFT_n[i, fc].real - interpolatedFFTn) * 100.0 / interpolatedFFTn
                                     else:
                                         err_sig4_chunk_FFT_percent[i][fc] = 0.0
@@ -2988,7 +2988,11 @@ def read():
     # check decoded BIT-STREAM
     ##########################
     code_bitarray_read = bitarray()
-    code_sig4_chunk_FFT_percent = np.array([np.zeros(NR_OF_CODE_FREQUENCIES)] * NR_OF_CHUNKS)
+    code_sig4_chunk_FFT_percent = np.zeros(
+        (NR_OF_CHUNKS, NR_OF_CODE_FREQUENCIES),
+        dtype=np.complex64,
+    )
+
     code_abs_gap4 = []
     nrOfBitsDecodedInMsg = 0
 
