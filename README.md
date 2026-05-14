@@ -7,9 +7,6 @@ Use "Audio Steganography for Pretty Good Concealment" to compress, encrypt, and 
 ```sh
   pip install as4pgc
   
-  # install dependencies:
-  pip install -r requirements.txt
-  
   # in linux:
   sudo apt install ffmpeg
   sudo apt install sox libsox-fmt-mp3
