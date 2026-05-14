@@ -14,6 +14,7 @@ Use "Audio Steganography for Pretty Good Concealment" to compress, encrypt, and 
 ```
 For Windows you can download ffmpeg from here:
 https://www.ffmpeg.org/
+
 WARNING: the current version was not yet tested on Windows, e.g. installation and use of sox.
 
 ## How to use it?
