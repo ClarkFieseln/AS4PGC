@@ -1,0 +1,36 @@
+- *** GUI with tkinter
+
+- code instead in derivative/integral domain
+
+- Windows:
+           linux -> win11
+           win11 -> linux
+  - test different frequency ranges (up to 10kHz)
+  - test bigger / longer files
+  - test different volumes
+
+- use SOX i.o. ffmpeg, it seems to be much faster (plot to check MP3 vs WAV, Err)
+  (use of sox i.o. ffmpeg to convert/generate files is currently not working)
+
+- add to article / code if required:
+  - we shall leave just enough signal in coding range in order to be able to interpolate for coding while still hiding it in frequency domain
+  - we need a gap/separation (of approx. 2kHz) between LPF-voice and HF-codes
+    we can assume that this separates MP3 formatting and makes voice and code more independent
+  - need to remove also voice-HFs beyond coded frequencies
+    they otherwise interfere with coding (even with 2kHz separation)
+  - some parameters like Q_FACTOR can be used to fine-tune for better hiding while they are NOT needed for decryption, i.e. not required in config.ini
+
+- "envelope" coding frequencies so we don't see a "wall" in frequency domain but follow a more natural
+  falling slope or even the original form, i.e. we code more FCs in lower frequencies and less on upper frequencies
+
+- automate input-signal adaptation (so no hard-coded fine-tuning is needed)
+  e.g. select value of BSF_MIN_ATTENUATION_DB "automatically" - hide code but code in few cycles at the same time
+  
+- pass any parameter as argument to command as4pgc, e.g.:
+    --arg Q_FACTOR
+  especially those which are NOT needed when decoding - i.e., that modify config.ini
+
+- avoid SOX clipping: check again the use of flags -G or gain -l or norm -0.1
+
+- i.o. of setting skipForcePlus and then skipForceMinus set both equally often, e.g. with RND()
+  (at the moment there may be a bias towards plus values!)
