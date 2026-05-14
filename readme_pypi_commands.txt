@@ -15,24 +15,21 @@ before you start:
 -----------------------
 
 sudo apt update
-
 sudo apt upgrade
+sudo apt install -y python3-dev
+sudo apt install -y libasound2-dev
 
 # in linux:
 sudo apt install sox libsox-fmt-mp3
 sudo apt install libsox-fmt-opus
+(see e.g. https://ubuntu.pkgs.org/25.04/ubuntu-universe-arm64/libsox-fmt-opus_14.4.2+git20190427-5build1_arm64.deb.html)
 sudo apt install ffmpeg
-sudo apt-get install -y python3-dev libasound2-dev
 
 python3 -m pip install --upgrade pip
-
+pip install -r requirements.txt
 pip install --upgrade pip setuptools
-
 pip install --use-pep517 simpleaudio
-
 pip install wheel
-
-pip install XXXXXXXXXXXXXXXX
 
 pip install XXXXXXXXXXXXXXXX
 
@@ -58,6 +55,7 @@ as4pgc -V
 -----------------------------------------------------------------------------
 
 pip install -I --user idna
+(pip install -I idna  # when venv_test)
 
 # inside the folder with the setup.py file type:
 
@@ -121,6 +119,5 @@ twine upload dist/*
    pip install as4pgc
 
 # now the command as4pgc is available for use
-
 
 
