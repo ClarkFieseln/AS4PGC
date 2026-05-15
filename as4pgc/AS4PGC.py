@@ -84,7 +84,8 @@ from sys import exit
 #       if we import it from setup.py the help shows "strange default parameters"...
 # import setup
 # from setup import __version__
-__version__ = "1.1.7"
+__version__ = "1.2"
+# WARNING: change also ../setup.py and __init__.py
 
 # current frame
 ###############
