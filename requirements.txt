@@ -1,9 +1,21 @@
-bitarray~=3.8.0
-cryptography~=46.0.3
-matplotlib~=3.10.7
-numpy~=2.3.5
-scipy~=1.16.3
-setuptools~=80.9.0
+#######################################################################
+# file obtained inside as4pgc_venv inside original project path, where setup.py is located, with:
+# pipreqs --force ./ --ignore backups --mode compat
+# to be used inside new venv_copy with:
+# pip install -r requirements.txt
+# though it seems we need:
+# - same python version (or compatible)
+# - ..
+# NOTE: requirements_venv_as4pgc.txt is needed for the complete venv dependencies
+#       which can be used with:
+#       pip install -r requirements_venv_as4pgc.txt
+#######################################################################
+bitarray~=3.8.1
+cryptography~=48.0.0
+matplotlib~=3.10.9
+numpy~=2.4.4
+scipy~=1.17.1
+setuptools~=82.0.1
 simpleaudio~=1.0.4
 soundfile~=0.13.1
 tinytag~=2.2.1
