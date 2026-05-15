@@ -4,13 +4,12 @@ Hide files inside audio files.
 Use "Audio Steganography for Pretty Good Concealment" to compress, encrypt, and hide small files of any type inside compressed audio files (e.g. MP3, FLAC, OGG, OPUS) or inside uncompressed files (.WAV).
 
 ## Installation
-```sh
+```sh 
+  sudo apt update
+  sudo apt install ffmpeg sox libsox-fmt-mp3 libsox-fmt-opus
+  (developer install:
+   sudo apt install python3-dev build-essential libasound2-dev ffmpeg sox libsox-fmt-mp3 libsox-fmt-opus)
   pip install as4pgc
-  
-  # in linux:
-  sudo apt install ffmpeg
-  sudo apt install sox libsox-fmt-mp3
-  sudo apt install libsox-fmt-opus
 ```
 For Windows you can download ffmpeg from here:
 https://www.ffmpeg.org/
