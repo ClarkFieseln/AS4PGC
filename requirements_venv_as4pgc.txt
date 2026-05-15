@@ -1,0 +1,103 @@
+#######################################################################
+# file obtained inside original venv with:
+# pip freeze > requirements_venv_as4pgc.txt
+# to be used inside new venv_copy with:
+# pip install -r requirements_venv_as4pgc.txt
+# though it seems we need:
+# - same python version (or compatible)
+# - ..
+# NOTE: requirements.txt is only for the project dependencies of as4pgc
+#       which can be used with:
+#       pip install -r requirements.txt
+#######################################################################
+asttokens==3.0.1
+attrs==26.1.0
+backcall==0.2.0
+beautifulsoup4==4.14.3
+bitarray==3.8.1
+bleach==6.3.0
+build==1.5.0
+certifi==2026.4.22
+cffi==2.0.0
+charset-normalizer==3.4.7
+contourpy==1.3.3
+cryptography==48.0.0
+cycler==0.12.1
+decorator==5.2.1
+defusedxml==0.7.1
+docopt==0.6.2
+docutils==0.22.4
+executing==2.2.1
+fastjsonschema==2.21.2
+fonttools==4.63.0
+id==1.6.1
+idna==3.15
+ipython==8.12.3
+jaraco.classes==3.4.0
+jaraco.context==6.1.2
+jaraco.functools==4.4.0
+jedi==0.20.0
+jeepney==0.9.0
+Jinja2==3.1.6
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+jupyter_client==8.8.0
+jupyter_core==5.9.1
+jupyterlab_pygments==0.3.0
+keyring==25.7.0
+kiwisolver==1.5.0
+markdown-it-py==4.2.0
+MarkupSafe==3.0.3
+matplotlib==3.10.9
+matplotlib-inline==0.2.2
+mdurl==0.1.2
+mistune==3.2.1
+more-itertools==11.0.2
+nbclient==0.10.4
+nbconvert==7.17.1
+nbformat==5.10.4
+nh3==0.3.5
+numpy==2.4.4
+packaging==26.2
+pandocfilters==1.5.1
+parso==0.8.7
+pexpect==4.9.0
+pickleshare==0.7.5
+pillow==12.2.0
+pipreqs==0.5.0
+platformdirs==4.9.6
+prompt_toolkit==3.0.52
+ptyprocess==0.7.0
+pure_eval==0.2.3
+pycparser==3.0
+Pygments==2.20.0
+pyparsing==3.3.2
+pyproject_hooks==1.2.0
+python-dateutil==2.9.0.post0
+pyzmq==27.1.0
+readme_renderer==44.0
+referencing==0.37.0
+requests==2.34.2
+requests-toolbelt==1.0.0
+rfc3986==2.0.0
+rich==15.0.0
+rpds-py==0.30.0
+scipy==1.17.1
+SecretStorage==3.5.0
+setuptools==82.0.1
+simpleaudio==1.0.4
+six==1.17.0
+soundfile==0.13.1
+soupsieve==2.8.3
+stack-data==0.6.3
+tinycss2==1.4.0
+tinytag==2.2.1
+tornado==6.5.5
+traitlets==5.15.0
+twine==6.2.0
+typing_extensions==4.15.0
+urllib3==2.7.0
+wcwidth==0.7.0
+webencodings==0.5.1
+wheel==0.47.0
+yarg==0.1.9
