@@ -2,8 +2,8 @@ import pathlib
 from setuptools import setup
 import sys
 
-if sys.version_info < (3,6):
-    print("as4pgc requires Python 3.6 or higher, please upgrade")
+if sys.version_info < (3,7):
+    print("as4pgc requires Python 3.7 or higher, please upgrade")
     sys.exit(1)
 
 # The directory containing this file
@@ -12,7 +12,8 @@ HERE = pathlib.Path(__file__).parent
 # The text of the README file
 README = (HERE / "README.md").read_text()
 
-__version__ = "1.1.7"
+__version__ = "1.2"
+# WARNING: change also as4pgc/__init__.py and as4pgc/AS4PGC.py
 
 # This call to setup() does all the work
 setup(
@@ -27,14 +28,12 @@ setup(
     license="MIT",
     classifiers=[
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
-        "Programming Language :: Python :: 3.13",
         "Development Status :: 4 - Beta",
         "Environment :: Console",
         "Intended Audience :: End Users/Desktop",
@@ -45,7 +44,7 @@ setup(
     ],
     packages=["as4pgc"],
     include_package_data=True,
-    install_requires=['SoundFile','matplotlib','dataclasses','cryptography>=46.0.3','numpy','scipy','bitarray','tinytag','simpleaudio'],
+    install_requires=['soundfile','matplotlib','cryptography>=46.0.3','numpy','scipy','bitarray','tinytag','simpleaudio'],
     dependency_links=['https://www.ffmpeg.org/'],
     keywords=['steganography','stego','audio','hide','cryptography','encryption','compression','security','cybersecurity','mp3','flac','ogg','opus','wav','linux'],
     entry_points={
