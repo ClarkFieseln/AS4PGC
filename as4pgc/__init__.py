@@ -1,4 +1,4 @@
 # Version of Module
 
-__version__ = "1.1.7"
-
+__version__ = "1.2"
+# WARNING: change also ../setup.py and AS4PGC.py
