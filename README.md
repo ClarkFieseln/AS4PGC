@@ -6,9 +6,9 @@ Use "Audio Steganography for Pretty Good Concealment" to compress, encrypt, and 
 ## Installation
 ```sh 
   sudo apt update
-  sudo apt install ffmpeg sox libsox-fmt-mp3 libsox-fmt-opus
+  sudo apt install ffmpeg sox libsox-fmt-mp3 libsox-fmt-opus python3-tk python3-pyqt5
   (developer install:
-   sudo apt install python3-dev build-essential libasound2-dev ffmpeg sox libsox-fmt-mp3 libsox-fmt-opus)
+   sudo apt install python3-dev build-essential libasound2-dev ffmpeg sox libsox-fmt-mp3 libsox-fmt-opus python3-tk python3-pyqt5)
   pip install as4pgc
 ```
 For Windows you can download ffmpeg from here:
