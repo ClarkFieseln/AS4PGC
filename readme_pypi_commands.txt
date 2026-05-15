@@ -22,6 +22,8 @@ sudo apt upgrade
 sudo apt install -y python3-dev
 sudo apt install -y build-essential
 sudo apt install -y libasound2-dev
+sudo apt install -y python3-tk
+sudo apt install -y python3-pyqt5
 
 # linux packages needed:
 sudo apt install sox libsox-fmt-mp3
