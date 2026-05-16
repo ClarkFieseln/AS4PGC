@@ -49,6 +49,7 @@ python3 -m pip install bitarray
 python3 -m pip install pipreqs
 python3 -m pip install tinytag
 python3 -m pip install simpleaudio
+python3 -m pip install --upgrade pip setuptools
 
 
 ######################
