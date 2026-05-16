@@ -12,7 +12,7 @@ HERE = pathlib.Path(__file__).parent
 # The text of the README file
 README = (HERE / "README.md").read_text()
 
-__version__ = "1.3"
+__version__ = "1.4"
 # WARNING: change also as4pgc/__init__.py and as4pgc/AS4PGC.py
 
 # This call to setup() does all the work
@@ -44,7 +44,7 @@ setup(
     ],
     packages=["as4pgc"],
     include_package_data=True,
-    install_requires=['soundfile','matplotlib','cryptography>=46.0.3','numpy','scipy','bitarray','tinytag','simpleaudio'],
+    install_requires=['soundfile','matplotlib','cryptography>=46.0.3; python_version >= "3.8"','cryptography>=39.0.0; python_version < "3.8"','numpy','scipy','bitarray','tinytag','simpleaudio'],
     dependency_links=['https://www.ffmpeg.org/'],
     keywords=['steganography','stego','audio','hide','cryptography','encryption','compression','security','cybersecurity','mp3','flac','ogg','opus','wav','linux'],
     entry_points={
