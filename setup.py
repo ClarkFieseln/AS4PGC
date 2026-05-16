@@ -12,7 +12,7 @@ HERE = pathlib.Path(__file__).parent
 # The text of the README file
 README = (HERE / "README.md").read_text()
 
-__version__ = "1.4"
+__version__ = "1.5"
 # WARNING: change also as4pgc/__init__.py and as4pgc/AS4PGC.py
 
 # This call to setup() does all the work
