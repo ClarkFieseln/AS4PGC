@@ -8,12 +8,12 @@ Use "Audio Steganography for Pretty Good Concealment" to compress, encrypt, and 
 
   ```bash
   sudo apt update
-  sudo apt install ffmpeg sox libsox-fmt-mp3 libsox-fmt-opus python3-tk python3-pyqt5
+  sudo apt install ffmpeg sox libsox-fmt-mp3 libsox-fmt-all python3-tk python3-pyqt5
   ```
 - For development (optional):
 
   ```bash
-  sudo apt install python3-dev build-essential libasound2-dev ffmpeg sox libsox-fmt-mp3 libsox-fmt-opus python3-tk python3-pyqt5
+  sudo apt install python3-dev build-essential libasound2-dev ffmpeg sox libsox-fmt-mp3 libsox-fmt-all python3-tk python3-pyqt5
   ```
 - Upgrade Python tooling and install the package:
 
