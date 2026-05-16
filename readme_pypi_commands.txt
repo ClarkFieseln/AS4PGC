@@ -26,9 +26,9 @@ sudo apt install -y python3-tk
 sudo apt install -y python3-pyqt5
 
 # linux packages needed:
-sudo apt install sox libsox-fmt-mp3
-sudo apt install libsox-fmt-opus
-(see e.g. https://ubuntu.pkgs.org/25.04/ubuntu-universe-arm64/libsox-fmt-opus_14.4.2+git20190427-5build1_arm64.deb.html)
+sudo apt install sox
+sudo apt install libsox-fmt-mp3
+sudo apt install libsox-fmt-all
 sudo apt install ffmpeg
 # pip packages needed
 python3 -m pip install --upgrade pip
