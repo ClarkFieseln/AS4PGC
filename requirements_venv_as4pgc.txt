@@ -88,7 +88,7 @@ setuptools==82.0.1
 simpleaudio==1.0.4
 six==1.17.0
 soundfile==0.13.1
-soupsieve==2.8.3
+soupsieve==2.8.4
 stack-data==0.6.3
 tinycss2==1.4.0
 tinytag==2.2.1
