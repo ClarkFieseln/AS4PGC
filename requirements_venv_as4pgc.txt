@@ -63,7 +63,7 @@ pandocfilters==1.5.1
 parso==0.8.7
 pexpect==4.9.0
 pickleshare==0.7.5
-pillow==12.2.0
+pillow==12.3.0
 pipreqs==0.5.0
 platformdirs==4.9.6
 prompt_toolkit==3.0.52
