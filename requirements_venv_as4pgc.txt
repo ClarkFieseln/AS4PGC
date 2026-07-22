@@ -84,7 +84,7 @@ rich==15.0.0
 rpds-py==0.30.0
 scipy==1.17.1
 SecretStorage==3.5.0
-setuptools==82.0.1
+setuptools==83.0.0
 simpleaudio==1.0.4
 six==1.17.0
 soundfile==0.13.1
